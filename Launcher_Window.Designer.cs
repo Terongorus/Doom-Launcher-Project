@@ -28,8 +28,17 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.menu_control = new System.Windows.Forms.TabControl();
             this.game_options_tab = new System.Windows.Forms.TabPage();
+            this.game_mode_label = new System.Windows.Forms.Label();
+            this.multiplayer_game_mode_select = new System.Windows.Forms.ComboBox();
+            this.players_host_label = new System.Windows.Forms.Label();
+            this.players_host_select = new System.Windows.Forms.ComboBox();
+            this.hostname_ip_label = new System.Windows.Forms.Label();
+            this.hostname_ip_textbox = new System.Windows.Forms.TextBox();
+            this.port_label = new System.Windows.Forms.Label();
+            this.port_textbox = new System.Windows.Forms.TextBox();
             this.enable_multiplayer = new System.Windows.Forms.CheckBox();
             this.difficulty_selection_label = new System.Windows.Forms.Label();
             this.difficulty_selection = new System.Windows.Forms.ComboBox();
@@ -57,6 +66,7 @@
             this.engines_list = new System.Windows.Forms.ListBox();
             this.play_button = new System.Windows.Forms.Button();
             this.command_line_view = new System.Windows.Forms.RichTextBox();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.menu_control.SuspendLayout();
             this.game_options_tab.SuspendLayout();
             this.launcher_options_tab.SuspendLayout();
@@ -82,6 +92,14 @@
             // 
             // game_options_tab
             // 
+            this.game_options_tab.Controls.Add(this.game_mode_label);
+            this.game_options_tab.Controls.Add(this.multiplayer_game_mode_select);
+            this.game_options_tab.Controls.Add(this.players_host_label);
+            this.game_options_tab.Controls.Add(this.players_host_select);
+            this.game_options_tab.Controls.Add(this.hostname_ip_label);
+            this.game_options_tab.Controls.Add(this.hostname_ip_textbox);
+            this.game_options_tab.Controls.Add(this.port_label);
+            this.game_options_tab.Controls.Add(this.port_textbox);
             this.game_options_tab.Controls.Add(this.enable_multiplayer);
             this.game_options_tab.Controls.Add(this.difficulty_selection_label);
             this.game_options_tab.Controls.Add(this.difficulty_selection);
@@ -102,7 +120,74 @@
             this.game_options_tab.TabIndex = 0;
             this.game_options_tab.Text = "Game Options";
             this.game_options_tab.UseVisualStyleBackColor = true;
-            this.game_options_tab.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
+            // 
+            // game_mode_label
+            // 
+            this.game_mode_label.AutoSize = true;
+            this.game_mode_label.Location = new System.Drawing.Point(2, 132);
+            this.game_mode_label.Name = "game_mode_label";
+            this.game_mode_label.Size = new System.Drawing.Size(101, 20);
+            this.game_mode_label.TabIndex = 16;
+            this.game_mode_label.Text = "Game mode:";
+            // 
+            // multiplayer_game_mode_select
+            // 
+            this.multiplayer_game_mode_select.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.multiplayer_game_mode_select.FormattingEnabled = true;
+            this.multiplayer_game_mode_select.Location = new System.Drawing.Point(6, 155);
+            this.multiplayer_game_mode_select.Name = "multiplayer_game_mode_select";
+            this.multiplayer_game_mode_select.Size = new System.Drawing.Size(179, 28);
+            this.multiplayer_game_mode_select.TabIndex = 15;
+            // 
+            // players_host_label
+            // 
+            this.players_host_label.AutoSize = true;
+            this.players_host_label.Location = new System.Drawing.Point(187, 132);
+            this.players_host_label.Name = "players_host_label";
+            this.players_host_label.Size = new System.Drawing.Size(137, 20);
+            this.players_host_label.TabIndex = 22;
+            this.players_host_label.Text = "Players (host/join):";
+            // 
+            // players_host_select
+            // 
+            this.players_host_select.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.players_host_select.FormattingEnabled = true;
+            this.players_host_select.Location = new System.Drawing.Point(191, 155);
+            this.players_host_select.Name = "players_host_select";
+            this.players_host_select.Size = new System.Drawing.Size(179, 28);
+            this.players_host_select.TabIndex = 21;
+            // 
+            // hostname_ip_label
+            // 
+            this.hostname_ip_label.AutoSize = true;
+            this.hostname_ip_label.Location = new System.Drawing.Point(2, 195);
+            this.hostname_ip_label.Name = "hostname_ip_label";
+            this.hostname_ip_label.Size = new System.Drawing.Size(106, 20);
+            this.hostname_ip_label.TabIndex = 19;
+            this.hostname_ip_label.Text = "Hostname/IP:";
+            // 
+            // hostname_ip_textbox
+            // 
+            this.hostname_ip_textbox.Location = new System.Drawing.Point(6, 218);
+            this.hostname_ip_textbox.Name = "hostname_ip_textbox";
+            this.hostname_ip_textbox.Size = new System.Drawing.Size(179, 26);
+            this.hostname_ip_textbox.TabIndex = 17;
+            // 
+            // port_label
+            // 
+            this.port_label.AutoSize = true;
+            this.port_label.Location = new System.Drawing.Point(187, 195);
+            this.port_label.Name = "port_label";
+            this.port_label.Size = new System.Drawing.Size(42, 20);
+            this.port_label.TabIndex = 20;
+            this.port_label.Text = "Port:";
+            // 
+            // port_textbox
+            // 
+            this.port_textbox.Location = new System.Drawing.Point(191, 218);
+            this.port_textbox.Name = "port_textbox";
+            this.port_textbox.Size = new System.Drawing.Size(179, 26);
+            this.port_textbox.TabIndex = 18;
             // 
             // enable_multiplayer
             // 
@@ -113,12 +198,12 @@
             this.enable_multiplayer.TabIndex = 9;
             this.enable_multiplayer.Text = "Multiplayer Mode";
             this.enable_multiplayer.UseVisualStyleBackColor = true;
-            this.enable_multiplayer.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
+            this.enable_multiplayer.CheckedChanged += new System.EventHandler(this.enable_multiplayer_CheckedChanged);
             // 
             // difficulty_selection_label
             // 
             this.difficulty_selection_label.AutoSize = true;
-            this.difficulty_selection_label.Location = new System.Drawing.Point(172, 9);
+            this.difficulty_selection_label.Location = new System.Drawing.Point(163, 9);
             this.difficulty_selection_label.Name = "difficulty_selection_label";
             this.difficulty_selection_label.Size = new System.Drawing.Size(41, 20);
             this.difficulty_selection_label.TabIndex = 8;
@@ -133,13 +218,11 @@
             this.difficulty_selection.Name = "difficulty_selection";
             this.difficulty_selection.Size = new System.Drawing.Size(121, 28);
             this.difficulty_selection.TabIndex = 6;
-            this.difficulty_selection.SelectedIndexChanged += new System.EventHandler(this.difficulty_selection_SelectedIndexChanged);
-            this.difficulty_selection.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
             // 
             // map_selection_label
             // 
             this.map_selection_label.AutoSize = true;
-            this.map_selection_label.Location = new System.Drawing.Point(6, 9);
+            this.map_selection_label.Location = new System.Drawing.Point(2, 9);
             this.map_selection_label.Name = "map_selection_label";
             this.map_selection_label.Size = new System.Drawing.Size(44, 20);
             this.map_selection_label.TabIndex = 7;
@@ -154,8 +237,6 @@
             this.map_selection.Name = "map_selection";
             this.map_selection.Size = new System.Drawing.Size(121, 28);
             this.map_selection.TabIndex = 5;
-            this.map_selection.SelectedIndexChanged += new System.EventHandler(this.map_selection_SelectedIndexChanged);
-            this.map_selection.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
             // 
             // engine_selection_label
             // 
@@ -178,7 +259,6 @@
             this.engine_selection.Size = new System.Drawing.Size(190, 28);
             this.engine_selection.TabIndex = 0;
             this.engine_selection.SelectedIndexChanged += new System.EventHandler(this.engine_selection_SelectedIndexChanged);
-            this.engine_selection.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
             // 
             // wad_selection_label
             // 
@@ -202,7 +282,6 @@
             this.wad_selection.Name = "wad_selection";
             this.wad_selection.Size = new System.Drawing.Size(190, 224);
             this.wad_selection.TabIndex = 2;
-            this.wad_selection.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
             this.wad_selection.SelectedIndexChanged += new System.EventHandler(this.wad_selection_SelectedIndexChanged);
             // 
             // add_mod_button
@@ -252,8 +331,6 @@
             this.mods_selection.Name = "mods_selection";
             this.mods_selection.Size = new System.Drawing.Size(190, 224);
             this.mods_selection.TabIndex = 14;
-            this.mods_selection.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
-            this.mods_selection.SelectedIndexChanged += new System.EventHandler(this.mods_selection_SelectedIndexChanged);
             // 
             // launcher_options_tab
             // 
@@ -434,6 +511,12 @@
             this.command_line_view.TabIndex = 2;
             this.command_line_view.Text = "";
             // 
+            // timer1
+            // 
+            this.timer1.Enabled = true;
+            this.timer1.Interval = 1000;
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            // 
             // Launcher_Window
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -445,9 +528,7 @@
             this.Name = "Launcher_Window";
             this.Text = "Form1";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Launcher_Window_FormClosed);
-            this.Load += new System.EventHandler(this.Launcher_Window_Load);
             this.Click += new System.EventHandler(this.Launcher_Window_Click);
-            this.MouseClick += new System.Windows.Forms.MouseEventHandler(this.new_selection_MouseClick);
             this.menu_control.ResumeLayout(false);
             this.game_options_tab.ResumeLayout(false);
             this.game_options_tab.PerformLayout();
@@ -493,6 +574,15 @@
         public System.Windows.Forms.Button add_mod_button;
         public System.Windows.Forms.Button remove_mod_button;
         public System.Windows.Forms.CheckedListBox mods_selection;
+        public System.Windows.Forms.Label hostname_ip_label;
+        public System.Windows.Forms.Label game_mode_label;
+        public System.Windows.Forms.ComboBox multiplayer_game_mode_select;
+        public System.Windows.Forms.TextBox hostname_ip_textbox;
+        public System.Windows.Forms.TextBox port_textbox;
+        public System.Windows.Forms.Label port_label;
+        public System.Windows.Forms.Label players_host_label;
+        public System.Windows.Forms.ComboBox players_host_select;
+        public System.Windows.Forms.Timer timer1;
     }
 }
 

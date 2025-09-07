@@ -143,6 +143,10 @@ namespace Doom_Launcher_Project
             public string Selected_SkillLevel { get; set; }
             public string Selected_Mods { get; set; }
             public bool Enable_Multiplayer { get; set; }
+            public string Selected_Game_Mode { get; set; }
+            public string Selected_Players { get; set; }
+            public string Host { get; set; }
+            public string Port { get; set; }
         }
         //creates the variable that will contain the Game config
         public static BindingList<GameConfigStructure> GameConfig = new BindingList<GameConfigStructure>();

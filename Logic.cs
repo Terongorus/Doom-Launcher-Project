@@ -344,6 +344,46 @@ namespace Doom_Launcher_Project
 
     public class Game_Options
     {
+        public void OnlineModeEnable(Launcher_Window self)
+        {
+            if (self.enable_multiplayer.Checked == true)
+            {
+                self.game_mode_label.Enabled = true;
+                self.multiplayer_game_mode_select.Enabled = true;
+                self.players_host_label.Enabled = true;
+                self.players_host_select.Enabled = true;
+                self.hostname_ip_label.Enabled = true;
+                self.hostname_ip_textbox.Enabled = true;
+                self.port_label.Enabled = true;
+                self.port_textbox.Enabled = true;
+
+                //populate the game mode selection
+                self.multiplayer_game_mode_select.Items.Clear();
+                self.multiplayer_game_mode_select.Items.Add("CO-OP");
+                self.multiplayer_game_mode_select.Items.Add("Deathmatch");
+                self.multiplayer_game_mode_select.Items.Add("Alt Deathmatch");
+
+                //populate the players (host/join) selection
+                self.players_host_select.Items.Add("Join");
+                for (int cnt1 = 1; cnt1 < 9; cnt1++)
+                {
+                    self.players_host_select.Items.Add("Host " + cnt1);
+                }
+                self.players_host_select.Items.Add("(More)");
+            }
+            else 
+            {
+                self.game_mode_label.Enabled = false;
+                self.multiplayer_game_mode_select.Enabled = false;
+                self.players_host_label.Enabled = false;
+                self.players_host_select.Enabled = false;
+                self.hostname_ip_label.Enabled = false;
+                self.hostname_ip_textbox.Enabled = false;
+                self.port_label.Enabled = false;
+                self.port_textbox.Enabled = false;
+            }
+        }
+
         public void SaveGameOptions(Launcher_Window self)
         {
             if (File.Exists(Globals.game_config_path))
@@ -356,7 +396,12 @@ namespace Doom_Launcher_Project
                     Selected_Map = self.map_selection.SelectedItem != null ? self.map_selection.SelectedItem.ToString() : string.Empty,
                     Selected_SkillLevel = self.difficulty_selection.SelectedItem != null ? self.difficulty_selection.SelectedItem.ToString() : string.Empty,
                     Selected_Mods = self.mods_selection.CheckedItems.Count > 0 ? string.Join(";", self.mods_selection.CheckedItems.Cast<string>()) : string.Empty,
-                    Enable_Multiplayer = self.enable_multiplayer.Checked
+                    //online gameplay options save
+                    Enable_Multiplayer = self.enable_multiplayer.Checked,
+                    Selected_Game_Mode = self.multiplayer_game_mode_select.SelectedItem != null ? self.multiplayer_game_mode_select.SelectedItem.ToString() : string.Empty,
+                    Selected_Players = self.players_host_select.SelectedItem != null ? self.players_host_select.SelectedItem.ToString() : string.Empty,  
+                    Host = self.hostname_ip_textbox.Text != null ? self.hostname_ip_textbox.Text : string.Empty,
+                    Port = self.port_textbox.Text != null ? self.port_textbox.Text : string.Empty
                 };
                 Globals.GameConfig.Add(game_config_entry);
                 File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize((Globals.GameConfig)));
@@ -432,7 +477,14 @@ namespace Doom_Launcher_Project
                     }
                     foreach (Globals.GameConfigStructure config in Globals.GameConfig.ToList())
                     {
-                        self.enable_multiplayer.Checked = config.Enable_Multiplayer;
+                        //load online settings
+                        self.enable_multiplayer.Checked = config.Enable_Multiplayer == true ? true : false;
+                        self.multiplayer_game_mode_select.SelectedItem = config.Selected_Game_Mode != string.Empty ? self.multiplayer_game_mode_select.Items.IndexOf(config.Selected_Game_Mode.ToString()).ToString() : string.Empty;
+                        self.players_host_select.SelectedItem = config.Selected_Players != string.Empty ? self.players_host_select.Items.IndexOf(config.Selected_Players.ToString()).ToString() : string.Empty;
+                        self.hostname_ip_textbox.Text = config.Host != string.Empty ? config.Host.ToString() : string.Empty;
+                        self.port_textbox.Text = config.Port != string.Empty ? config.Port.ToString() : string.Empty;
+
+                        //map load settings
                         self.difficulty_selection.SelectedItem = config.Selected_SkillLevel != string.Empty ? config.Selected_SkillLevel.ToString() : "(Default)";
                         if (self.wad_selection.SelectedItem != null)
                         {
@@ -545,6 +597,12 @@ namespace Doom_Launcher_Project
                 string selected_difficulty = string.Empty;
                 string selected_mod = string.Empty;
 
+                //multiplayers game arguments
+                string selected_game_mode = string.Empty;
+                string selected_players = string.Empty;
+                string host = string.Empty;
+                string port = string.Empty;
+
                 //reload the lists from the config files
                 string wad_json = File.ReadAllText(Globals.wad_config_path);
                 string engine_json = File.ReadAllText(Globals.engine_config_path);
@@ -564,11 +622,6 @@ namespace Doom_Launcher_Project
                         }
                     }
                 }
-                else
-                {
-                    return;
-                }
-
                 if (self.wad_selection.SelectedItem != null)
                 {
                     foreach (Globals.WADListStructure wad in Globals.WADList)
@@ -580,11 +633,6 @@ namespace Doom_Launcher_Project
                         }
                     }
                 }
-                else
-                {
-                    return;
-                }
-
                 if (self.mods_selection.SelectedItem != null)
                 {
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
@@ -599,11 +647,8 @@ namespace Doom_Launcher_Project
                         }
                     }
                 }
-                else 
-                {
-                    return;
-                }
 
+                //dufficulty and map selection
                 if (self.difficulty_selection.SelectedItem != null)
                 {
                     switch (self.difficulty_selection.SelectedItem.ToString())
@@ -630,10 +675,6 @@ namespace Doom_Launcher_Project
                             selected_difficulty = "";
                             break;
                     }
-                }
-                else
-                {
-                    return;
                 }
                 if (self.map_selection.SelectedItem != null)
                 {
@@ -875,11 +916,88 @@ namespace Doom_Launcher_Project
                             break;
                     }
                 }
-                else
+                
+                //online game options
+                if (self.enable_multiplayer.Checked == true)
                 {
-                    return;
+                    //select the game mode for a multiplayer game
+                    if (self.multiplayer_game_mode_select.SelectedItem != null)
+                    {
+                        switch (self.multiplayer_game_mode_select.SelectedItem.ToString())
+                        {
+                            case "CO_OP":
+                                selected_game_mode = "";
+                                break;
+                            case "Deathmatch":
+                                selected_game_mode = " -deathmatch";
+                                break;
+                            case "Alt Deathmatch":
+                                selected_game_mode = " -altdeath";
+                                break;
+                            default:
+                                selected_game_mode = "";
+                                break;
+                        }
+                    }
+                    if (self.hostname_ip_textbox.Text != null || self.hostname_ip_textbox.Text != string.Empty)
+                    {
+                        host = self.hostname_ip_textbox.Text;
+                    }
+                    //no need to return if port is not available (it's an optional feature)
+                    if (self.port_textbox.Text != null || self.port_textbox.Text != string.Empty)
+                    {
+                        port = self.port_textbox.Text;
+                    }
+                    //select whether to host or join a game
+                    if (self.players_host_select.SelectedItem != null)
+                    {
+                        switch (self.players_host_select.SelectedItem.ToString())
+                        {
+                            case "Join":
+                                if (port == null || port == string.Empty)
+                                {
+                                    selected_players = $"{" -join " + host}";
+                                }
+                                else if (port != null || port != string.Empty)
+                                {
+                                    selected_players = $"{" -join " + host + ":" + port}";
+                                }
+                                break;
+                            case "Host 1":
+                                selected_players = " -host 1";
+                                break;
+                            case "Host 2":
+                                selected_players = " -host 2";
+                                break;
+                            case "Host 3":
+                                selected_players = " -host 3";
+                                break;
+                            case "Host 4":
+                                selected_players = " -host 4";
+                                break;
+                            case "Host 5":
+                                selected_players = " -host 5";
+                                break;
+                            case "Host 6":
+                                selected_players = " -host 6";
+                                break;
+                            case "Host 7":
+                                selected_players = " -host 7";
+                                break;
+                            case "Host 8":
+                                selected_players = " -host 8";
+                                break;
+                            case "(More)":
+                                break;
+                            default:
+                                selected_players = "";
+                                break;
+                        }
+                    }
                 }
-                arguments = $"{"-iwad \"" + selected_wad + "\"" + selected_difficulty + selected_map + " -file " + selected_mod}";
+
+                //build the play command
+                arguments = $"{"-iwad \"" + selected_wad + "\"" + selected_difficulty + selected_map + " -file " + selected_mod + selected_game_mode + selected_players}";
                 self.command_line_view.Text = $"{selected_engine} {arguments}";
                 //load the command line to globals for launching the game
                 Globals.game_launch_engine = selected_engine;

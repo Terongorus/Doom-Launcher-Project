@@ -32,6 +32,7 @@ namespace Doom_Launcher_Project
             //loads the game options from the config file
             Game_Options game_Options = new Game_Options();
             game_Options.LoadGameOptions(this);
+            game_options.OnlineModeEnable(this);
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -124,37 +125,16 @@ namespace Doom_Launcher_Project
             mods_options.Remove_Mod(this);
         }
 
-        private void Launcher_Window_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void new_selection_MouseClick(object sender, MouseEventArgs e)
+        private void timer1_Tick(object sender, EventArgs e)
         {
             Game_Options game_options = new Game_Options();
-            game_options.SaveGameOptions(this);
             game_options.GenerateExecutable(this);
         }
 
-        private void mods_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private void enable_multiplayer_CheckedChanged(object sender, EventArgs e)
         {
             Game_Options game_options = new Game_Options();
-            game_options.SaveGameOptions(this);
-            game_options.GenerateExecutable(this);
-        }
-
-        private void map_selection_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Game_Options game_options = new Game_Options();
-            game_options.SaveGameOptions(this);
-            game_options.GenerateExecutable(this);
-        }
-
-        private void difficulty_selection_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Game_Options game_Options = new Game_Options();
-            game_Options.SaveGameOptions(this);
-            game_Options.GenerateExecutable(this);
+            game_options.OnlineModeEnable(this);
         }
     }
 }
