@@ -16,7 +16,8 @@ namespace Doom_Launcher_Project
         public Launcher_Window()
         {
             InitializeComponent();
-
+            Game_Options product_details = new Game_Options();
+            product_details.ProductDetails(this);
             //loads the WADs from the config files
             WAD_Options wad_options = new WAD_Options();
             wad_options.Load_WADs(this);

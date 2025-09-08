@@ -391,6 +391,14 @@ namespace Doom_Launcher_Project
 
     public class Game_Options
     {
+        public void ProductDetails(Launcher_Window self)
+        {
+            string ProductName = "Teron's Doom Launcher (TDL)";
+            string ProductVersion = "v1.0.2";
+            string ProductOwner = "Terongorus";
+            self.Text = $"{ProductName} {ProductVersion} - by {ProductOwner}";
+        }
+
         public void OnlineModeEnable(Launcher_Window self)
         {
             if (self.enable_multiplayer.Checked == true)
@@ -619,32 +627,36 @@ namespace Doom_Launcher_Project
 
         public void Load_MapsToList(Launcher_Window self)
         {
-            string match_1_json = File.ReadAllText(Globals.match);
-            Globals.MATCHWADLIST1 = JsonSerializer.Deserialize<BindingList<Globals.WADMatchListStructure>>(match_1_json);
-
-            string normalized = self.wad_selection.SelectedItem.ToString().ToLowerInvariant();
-            normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // remove punctuation/space
-            normalized = normalized + ".wad";
-            if (Globals.match_1.Any(match => normalized.Contains(match.ToLowerInvariant())))
+            if (self.wad_selection.SelectedItem != null)
             {
-                self.map_selection.Items.Clear();
-                foreach (string map in Globals.doom_1_maps)
+                string normalized = self.wad_selection.SelectedItem.ToString().ToLowerInvariant();
+                normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // remove punctuation/space
+                normalized = normalized + ".wad";
+                if (Globals.match_1.Any(match => normalized.Contains(match.ToLowerInvariant())))
                 {
-                    self.map_selection.Items.Add(map);
+                    self.map_selection.Items.Clear();
+                    foreach (string map in Globals.doom_1_maps)
+                    {
+                        self.map_selection.Items.Add(map);
+                    }
+                }
+                else if (Globals.match_2.Any(match => normalized.Contains(match.ToLowerInvariant())))
+                {
+                    self.map_selection.Items.Clear();
+                    foreach (string map in Globals.doom_2_maps)
+                    {
+                        self.map_selection.Items.Add(map);
+                    }
+                }
+                else
+                {
+                    self.map_selection.Items.Clear();
+                    MessageBox.Show("No WAD match found in either database!", "No WAD match!", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
-            else if (Globals.match_2.Any(match => normalized.Contains(match.ToLowerInvariant())))
+            else
             {
-                self.map_selection.Items.Clear();
-                foreach (string map in Globals.doom_2_maps)
-                {
-                    self.map_selection.Items.Add(map);
-                }
-            }
-            else 
-            {
-                self.map_selection.Items.Clear();
-                MessageBox.Show("No WAD match found in either database!", "No WAD match!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
         }
 

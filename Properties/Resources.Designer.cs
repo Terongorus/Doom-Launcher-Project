@@ -71,6 +71,16 @@ namespace Doom_Launcher_Project.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] d3hsp3f_094f83e1_40a9_4d57_a31d_31a74c7cac89 {
+            get {
+                object obj = ResourceManager.GetObject("d3hsp3f-094f83e1-40a9-4d57-a31d-31a74c7cac89", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
         internal static System.Drawing.Bitmap R {

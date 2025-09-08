@@ -18,7 +18,6 @@ namespace Doom_Launcher_Project
         public static string engine_config_path = "engine_config.json";
         public static string mods_config_path = "mods_config.json";
         public static string game_config_path = "game_config.json";
-        public static string match = "iwad_variants_doom_names.json";
 
         //regular wad names container
         public static string[] match_1 =
