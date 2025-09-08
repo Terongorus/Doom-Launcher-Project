@@ -18,6 +18,33 @@ namespace Doom_Launcher_Project
         public static string engine_config_path = "engine_config.json";
         public static string mods_config_path = "mods_config.json";
         public static string game_config_path = "game_config.json";
+        public static string match = "iwad_variants_doom_names.json";
+
+        //regular wad names container
+        public static string[] match_1 =
+        {
+            "chex.wad",  
+            "chex2.wad",
+            "chex3.wad",
+            "doom.wad",
+            "freedoom1.wad",
+            "heretic.wad",
+            "ultdoom.wad",
+            "doomshareware.wad"
+        };
+        public static string[] match_2 =
+        {            
+            "doom2.wad",
+            "tnt.wad",
+            "tnt(evilution).wad",
+            "tntevilution.wad",
+            "plutonia.wad",
+            "plutonia2.wad",
+            "hexen.wad",
+            "strife1.wad",
+            "freedoom2.wad",
+            "doomzero.wad"
+        };
 
         //maps container for Doom 1
         public static string[] doom_1_maps = new string[]
@@ -106,6 +133,14 @@ namespace Doom_Launcher_Project
             "MAP39",
             "MAP40"
         };
+
+        public class WADMatchListStructure
+        {
+            public string wad_name { get; set; }
+            public string wad_name_2 { get; set; }
+        }
+        public static BindingList<WADMatchListStructure> MATCHWADLIST1 = new BindingList<WADMatchListStructure>();
+        public static BindingList<WADMatchListStructure> MATCHWADLIST2 = new BindingList<WADMatchListStructure>();
 
         //creates a template of the WAD list (the structure)
         public class WADListStructure

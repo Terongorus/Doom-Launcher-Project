@@ -39,6 +39,14 @@
             this.hostname_ip_textbox = new System.Windows.Forms.TextBox();
             this.port_label = new System.Windows.Forms.Label();
             this.port_textbox = new System.Windows.Forms.TextBox();
+            this.frag_limit_label = new System.Windows.Forms.Label();
+            this.frag_limit = new System.Windows.Forms.TextBox();
+            this.time_limit_label = new System.Windows.Forms.Label();
+            this.time_limit = new System.Windows.Forms.TextBox();
+            this.dmflags_label = new System.Windows.Forms.Label();
+            this.dmflags = new System.Windows.Forms.TextBox();
+            this.dmflags2_label = new System.Windows.Forms.Label();
+            this.dmflags2 = new System.Windows.Forms.TextBox();
             this.enable_multiplayer = new System.Windows.Forms.CheckBox();
             this.difficulty_selection_label = new System.Windows.Forms.Label();
             this.difficulty_selection = new System.Windows.Forms.ComboBox();
@@ -87,7 +95,7 @@
             this.menu_control.Location = new System.Drawing.Point(12, 12);
             this.menu_control.Name = "menu_control";
             this.menu_control.SelectedIndex = 0;
-            this.menu_control.Size = new System.Drawing.Size(776, 370);
+            this.menu_control.Size = new System.Drawing.Size(827, 439);
             this.menu_control.TabIndex = 0;
             // 
             // game_options_tab
@@ -100,6 +108,14 @@
             this.game_options_tab.Controls.Add(this.hostname_ip_textbox);
             this.game_options_tab.Controls.Add(this.port_label);
             this.game_options_tab.Controls.Add(this.port_textbox);
+            this.game_options_tab.Controls.Add(this.frag_limit_label);
+            this.game_options_tab.Controls.Add(this.frag_limit);
+            this.game_options_tab.Controls.Add(this.time_limit_label);
+            this.game_options_tab.Controls.Add(this.time_limit);
+            this.game_options_tab.Controls.Add(this.dmflags_label);
+            this.game_options_tab.Controls.Add(this.dmflags);
+            this.game_options_tab.Controls.Add(this.dmflags2_label);
+            this.game_options_tab.Controls.Add(this.dmflags2);
             this.game_options_tab.Controls.Add(this.enable_multiplayer);
             this.game_options_tab.Controls.Add(this.difficulty_selection_label);
             this.game_options_tab.Controls.Add(this.difficulty_selection);
@@ -116,7 +132,7 @@
             this.game_options_tab.Location = new System.Drawing.Point(4, 29);
             this.game_options_tab.Name = "game_options_tab";
             this.game_options_tab.Padding = new System.Windows.Forms.Padding(3);
-            this.game_options_tab.Size = new System.Drawing.Size(768, 337);
+            this.game_options_tab.Size = new System.Drawing.Size(819, 406);
             this.game_options_tab.TabIndex = 0;
             this.game_options_tab.Text = "Game Options";
             this.game_options_tab.UseVisualStyleBackColor = true;
@@ -189,6 +205,70 @@
             this.port_textbox.Size = new System.Drawing.Size(179, 26);
             this.port_textbox.TabIndex = 18;
             // 
+            // frag_limit_label
+            // 
+            this.frag_limit_label.AutoSize = true;
+            this.frag_limit_label.Location = new System.Drawing.Point(2, 258);
+            this.frag_limit_label.Name = "frag_limit_label";
+            this.frag_limit_label.Size = new System.Drawing.Size(77, 20);
+            this.frag_limit_label.TabIndex = 25;
+            this.frag_limit_label.Text = "Frag limit:";
+            // 
+            // frag_limit
+            // 
+            this.frag_limit.Location = new System.Drawing.Point(6, 281);
+            this.frag_limit.Name = "frag_limit";
+            this.frag_limit.Size = new System.Drawing.Size(179, 26);
+            this.frag_limit.TabIndex = 23;
+            // 
+            // time_limit_label
+            // 
+            this.time_limit_label.AutoSize = true;
+            this.time_limit_label.Location = new System.Drawing.Point(187, 258);
+            this.time_limit_label.Name = "time_limit_label";
+            this.time_limit_label.Size = new System.Drawing.Size(74, 20);
+            this.time_limit_label.TabIndex = 28;
+            this.time_limit_label.Text = "Time limit";
+            // 
+            // time_limit
+            // 
+            this.time_limit.Location = new System.Drawing.Point(191, 281);
+            this.time_limit.Name = "time_limit";
+            this.time_limit.Size = new System.Drawing.Size(179, 26);
+            this.time_limit.TabIndex = 24;
+            // 
+            // dmflags_label
+            // 
+            this.dmflags_label.AutoSize = true;
+            this.dmflags_label.Location = new System.Drawing.Point(2, 321);
+            this.dmflags_label.Name = "dmflags_label";
+            this.dmflags_label.Size = new System.Drawing.Size(92, 20);
+            this.dmflags_label.TabIndex = 29;
+            this.dmflags_label.Text = "DMFLAGS:";
+            // 
+            // dmflags
+            // 
+            this.dmflags.Location = new System.Drawing.Point(6, 344);
+            this.dmflags.Name = "dmflags";
+            this.dmflags.Size = new System.Drawing.Size(179, 26);
+            this.dmflags.TabIndex = 26;
+            // 
+            // dmflags2_label
+            // 
+            this.dmflags2_label.AutoSize = true;
+            this.dmflags2_label.Location = new System.Drawing.Point(187, 321);
+            this.dmflags2_label.Name = "dmflags2_label";
+            this.dmflags2_label.Size = new System.Drawing.Size(101, 20);
+            this.dmflags2_label.TabIndex = 30;
+            this.dmflags2_label.Text = "DMFLAGS2:";
+            // 
+            // dmflags2
+            // 
+            this.dmflags2.Location = new System.Drawing.Point(191, 344);
+            this.dmflags2.Name = "dmflags2";
+            this.dmflags2.Size = new System.Drawing.Size(179, 26);
+            this.dmflags2.TabIndex = 27;
+            // 
             // enable_multiplayer
             // 
             this.enable_multiplayer.AutoSize = true;
@@ -242,7 +322,7 @@
             // 
             this.engine_selection_label.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.engine_selection_label.AutoSize = true;
-            this.engine_selection_label.Location = new System.Drawing.Point(568, 9);
+            this.engine_selection_label.Location = new System.Drawing.Point(619, 9);
             this.engine_selection_label.Margin = new System.Windows.Forms.Padding(3);
             this.engine_selection_label.Name = "engine_selection_label";
             this.engine_selection_label.Size = new System.Drawing.Size(110, 20);
@@ -254,7 +334,7 @@
             this.engine_selection.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.engine_selection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.engine_selection.FormattingEnabled = true;
-            this.engine_selection.Location = new System.Drawing.Point(572, 32);
+            this.engine_selection.Location = new System.Drawing.Point(623, 32);
             this.engine_selection.Name = "engine_selection";
             this.engine_selection.Size = new System.Drawing.Size(190, 28);
             this.engine_selection.TabIndex = 0;
@@ -265,7 +345,7 @@
             this.wad_selection_label.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.wad_selection_label.AutoSize = true;
-            this.wad_selection_label.Location = new System.Drawing.Point(568, 83);
+            this.wad_selection_label.Location = new System.Drawing.Point(619, 83);
             this.wad_selection_label.Name = "wad_selection_label";
             this.wad_selection_label.Size = new System.Drawing.Size(100, 20);
             this.wad_selection_label.TabIndex = 4;
@@ -278,9 +358,9 @@
             this.wad_selection.FormattingEnabled = true;
             this.wad_selection.IntegralHeight = false;
             this.wad_selection.ItemHeight = 20;
-            this.wad_selection.Location = new System.Drawing.Point(572, 106);
+            this.wad_selection.Location = new System.Drawing.Point(623, 106);
             this.wad_selection.Name = "wad_selection";
-            this.wad_selection.Size = new System.Drawing.Size(190, 224);
+            this.wad_selection.Size = new System.Drawing.Size(190, 293);
             this.wad_selection.TabIndex = 2;
             this.wad_selection.SelectedIndexChanged += new System.EventHandler(this.wad_selection_SelectedIndexChanged);
             // 
@@ -289,7 +369,7 @@
             this.add_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.add_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
             this.add_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.add_mod_button.Location = new System.Drawing.Point(546, 86);
+            this.add_mod_button.Location = new System.Drawing.Point(597, 86);
             this.add_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
             this.add_mod_button.Name = "add_mod_button";
             this.add_mod_button.Size = new System.Drawing.Size(20, 20);
@@ -302,7 +382,7 @@
             this.remove_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.remove_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
             this.remove_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.remove_mod_button.Location = new System.Drawing.Point(520, 86);
+            this.remove_mod_button.Location = new System.Drawing.Point(571, 86);
             this.remove_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
             this.remove_mod_button.Name = "remove_mod_button";
             this.remove_mod_button.Size = new System.Drawing.Size(20, 20);
@@ -315,7 +395,7 @@
             this.mods_selection_label.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.mods_selection_label.AutoSize = true;
-            this.mods_selection_label.Location = new System.Drawing.Point(372, 83);
+            this.mods_selection_label.Location = new System.Drawing.Point(423, 83);
             this.mods_selection_label.Name = "mods_selection_label";
             this.mods_selection_label.Size = new System.Drawing.Size(101, 20);
             this.mods_selection_label.TabIndex = 11;
@@ -327,9 +407,9 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.mods_selection.FormattingEnabled = true;
             this.mods_selection.IntegralHeight = false;
-            this.mods_selection.Location = new System.Drawing.Point(376, 106);
+            this.mods_selection.Location = new System.Drawing.Point(427, 106);
             this.mods_selection.Name = "mods_selection";
-            this.mods_selection.Size = new System.Drawing.Size(190, 224);
+            this.mods_selection.Size = new System.Drawing.Size(190, 293);
             this.mods_selection.TabIndex = 14;
             // 
             // launcher_options_tab
@@ -338,7 +418,7 @@
             this.launcher_options_tab.Location = new System.Drawing.Point(4, 29);
             this.launcher_options_tab.Name = "launcher_options_tab";
             this.launcher_options_tab.Padding = new System.Windows.Forms.Padding(3);
-            this.launcher_options_tab.Size = new System.Drawing.Size(768, 337);
+            this.launcher_options_tab.Size = new System.Drawing.Size(819, 406);
             this.launcher_options_tab.TabIndex = 1;
             this.launcher_options_tab.Text = "Launcher Options";
             this.launcher_options_tab.UseVisualStyleBackColor = true;
@@ -366,8 +446,8 @@
             this.launcher_options_container.Panel2.Controls.Add(this.edit_engine_button);
             this.launcher_options_container.Panel2.Controls.Add(this.engines_label);
             this.launcher_options_container.Panel2.Controls.Add(this.engines_list);
-            this.launcher_options_container.Size = new System.Drawing.Size(768, 337);
-            this.launcher_options_container.SplitterDistance = 386;
+            this.launcher_options_container.Size = new System.Drawing.Size(819, 406);
+            this.launcher_options_container.SplitterDistance = 411;
             this.launcher_options_container.TabIndex = 2;
             // 
             // add_wads_button
@@ -426,7 +506,7 @@
             this.wads_list.Margin = new System.Windows.Forms.Padding(0, 30, 0, 0);
             this.wads_list.Name = "wads_list";
             this.wads_list.SelectionMode = System.Windows.Forms.SelectionMode.MultiSimple;
-            this.wads_list.Size = new System.Drawing.Size(386, 292);
+            this.wads_list.Size = new System.Drawing.Size(411, 361);
             this.wads_list.TabIndex = 3;
             // 
             // add_engines
@@ -486,13 +566,13 @@
             this.engines_list.Margin = new System.Windows.Forms.Padding(0, 30, 0, 0);
             this.engines_list.Name = "engines_list";
             this.engines_list.SelectionMode = System.Windows.Forms.SelectionMode.MultiSimple;
-            this.engines_list.Size = new System.Drawing.Size(378, 292);
+            this.engines_list.Size = new System.Drawing.Size(404, 361);
             this.engines_list.TabIndex = 4;
             // 
             // play_button
             // 
             this.play_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.play_button.Location = new System.Drawing.Point(713, 388);
+            this.play_button.Location = new System.Drawing.Point(764, 457);
             this.play_button.Name = "play_button";
             this.play_button.Size = new System.Drawing.Size(75, 50);
             this.play_button.TabIndex = 1;
@@ -504,10 +584,10 @@
             // 
             this.command_line_view.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.command_line_view.Location = new System.Drawing.Point(12, 389);
+            this.command_line_view.Location = new System.Drawing.Point(12, 458);
             this.command_line_view.Name = "command_line_view";
             this.command_line_view.ReadOnly = true;
-            this.command_line_view.Size = new System.Drawing.Size(695, 49);
+            this.command_line_view.Size = new System.Drawing.Size(746, 49);
             this.command_line_view.TabIndex = 2;
             this.command_line_view.Text = "";
             // 
@@ -521,7 +601,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
+            this.ClientSize = new System.Drawing.Size(851, 519);
             this.Controls.Add(this.command_line_view);
             this.Controls.Add(this.play_button);
             this.Controls.Add(this.menu_control);
@@ -583,6 +663,14 @@
         public System.Windows.Forms.Label players_host_label;
         public System.Windows.Forms.ComboBox players_host_select;
         public System.Windows.Forms.Timer timer1;
+        public System.Windows.Forms.TextBox frag_limit;
+        public System.Windows.Forms.Label frag_limit_label;
+        public System.Windows.Forms.Label time_limit_label;
+        public System.Windows.Forms.TextBox time_limit;
+        public System.Windows.Forms.Label dmflags_label;
+        public System.Windows.Forms.TextBox dmflags;
+        public System.Windows.Forms.Label dmflags2_label;
+        public System.Windows.Forms.TextBox dmflags2;
     }
 }
 

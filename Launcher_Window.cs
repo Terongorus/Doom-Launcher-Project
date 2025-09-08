@@ -29,10 +29,10 @@ namespace Doom_Launcher_Project
             //loads the skill levels into the skill level dropdown menu
             Game_Options game_options = new Game_Options();
             game_options.Load_SkillLevelsToList(this);
-            //loads the game options from the config file
-            Game_Options game_Options = new Game_Options();
-            game_Options.LoadGameOptions(this);
+            game_options.Load_GameOptions(this);
             game_options.OnlineModeEnable(this);
+            game_options.Load_OnlineGameplayModes(this);
+            game_options.Load_PlayerSelectList(this);
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -82,7 +82,7 @@ namespace Doom_Launcher_Project
         private void engine_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
             Game_Options game_Options = new Game_Options();
-            game_Options.SaveGameOptions(this);
+            game_Options.Save_GameOptions(this);
             game_Options.GenerateExecutable(this);
         }
 
@@ -96,20 +96,20 @@ namespace Doom_Launcher_Project
         {
             Game_Options game_options = new Game_Options();
             game_options.Load_MapsToList(this);
-            game_options.SaveGameOptions(this);
+            game_options.Save_GameOptions(this);
             game_options.GenerateExecutable(this);
         }
 
         private void Launcher_Window_FormClosed(object sender, FormClosedEventArgs e)
         {
             Game_Options game_options = new Game_Options();
-            game_options.SaveGameOptions(this);
+            game_options.Save_GameOptions(this);
         }
 
         private void Launcher_Window_Click(object sender, EventArgs e)
         {
             Game_Options game_options = new Game_Options();
-            game_options.SaveGameOptions(this);
+            game_options.Save_GameOptions(this);
             game_options.GenerateExecutable(this);
         }
 
