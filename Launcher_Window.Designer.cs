@@ -57,25 +57,25 @@
             this.engine_selection = new System.Windows.Forms.ComboBox();
             this.wad_selection_label = new System.Windows.Forms.Label();
             this.wad_selection = new System.Windows.Forms.ListBox();
+            this.add_mod_button = new System.Windows.Forms.Button();
+            this.remove_mod_button = new System.Windows.Forms.Button();
             this.mods_selection_label = new System.Windows.Forms.Label();
             this.mods_selection = new System.Windows.Forms.CheckedListBox();
             this.launcher_options_tab = new System.Windows.Forms.TabPage();
             this.launcher_options_container = new System.Windows.Forms.SplitContainer();
+            this.add_wads_button = new System.Windows.Forms.Button();
+            this.remove_wads = new System.Windows.Forms.Button();
+            this.edit_wad_button = new System.Windows.Forms.Button();
             this.wads_label = new System.Windows.Forms.Label();
             this.wads_list = new System.Windows.Forms.ListBox();
+            this.add_engines = new System.Windows.Forms.Button();
+            this.remove_engines = new System.Windows.Forms.Button();
+            this.edit_engine_button = new System.Windows.Forms.Button();
             this.engines_label = new System.Windows.Forms.Label();
             this.engines_list = new System.Windows.Forms.ListBox();
             this.play_button = new System.Windows.Forms.Button();
             this.command_line_view = new System.Windows.Forms.RichTextBox();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.add_mod_button = new System.Windows.Forms.Button();
-            this.remove_mod_button = new System.Windows.Forms.Button();
-            this.add_wads_button = new System.Windows.Forms.Button();
-            this.remove_wads = new System.Windows.Forms.Button();
-            this.edit_wad_button = new System.Windows.Forms.Button();
-            this.add_engines = new System.Windows.Forms.Button();
-            this.remove_engines = new System.Windows.Forms.Button();
-            this.edit_engine_button = new System.Windows.Forms.Button();
             this.menu_control.SuspendLayout();
             this.game_options_tab.SuspendLayout();
             this.launcher_options_tab.SuspendLayout();
@@ -365,6 +365,32 @@
             this.wad_selection.TabIndex = 2;
             this.wad_selection.SelectedIndexChanged += new System.EventHandler(this.wad_selection_SelectedIndexChanged);
             // 
+            // add_mod_button
+            // 
+            this.add_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.add_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
+            this.add_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.add_mod_button.Location = new System.Drawing.Point(597, 86);
+            this.add_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
+            this.add_mod_button.Name = "add_mod_button";
+            this.add_mod_button.Size = new System.Drawing.Size(20, 20);
+            this.add_mod_button.TabIndex = 12;
+            this.add_mod_button.UseVisualStyleBackColor = true;
+            this.add_mod_button.Click += new System.EventHandler(this.add_mod_button_Click);
+            // 
+            // remove_mod_button
+            // 
+            this.remove_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.remove_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
+            this.remove_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.remove_mod_button.Location = new System.Drawing.Point(571, 86);
+            this.remove_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
+            this.remove_mod_button.Name = "remove_mod_button";
+            this.remove_mod_button.Size = new System.Drawing.Size(20, 20);
+            this.remove_mod_button.TabIndex = 13;
+            this.remove_mod_button.UseVisualStyleBackColor = true;
+            this.remove_mod_button.Click += new System.EventHandler(this.remove_mod_button_Click);
+            // 
             // mods_selection_label
             // 
             this.mods_selection_label.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -386,6 +412,7 @@
             this.mods_selection.Name = "mods_selection";
             this.mods_selection.Size = new System.Drawing.Size(190, 293);
             this.mods_selection.TabIndex = 14;
+            this.mods_selection.SelectedIndexChanged += new System.EventHandler(this.mods_selection_SelectedIndexChanged);
             // 
             // launcher_options_tab
             // 
@@ -425,6 +452,39 @@
             this.launcher_options_container.SplitterDistance = 411;
             this.launcher_options_container.TabIndex = 2;
             // 
+            // add_wads_button
+            // 
+            this.add_wads_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
+            this.add_wads_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.add_wads_button.Location = new System.Drawing.Point(363, 11);
+            this.add_wads_button.Name = "add_wads_button";
+            this.add_wads_button.Size = new System.Drawing.Size(20, 20);
+            this.add_wads_button.TabIndex = 2;
+            this.add_wads_button.UseVisualStyleBackColor = true;
+            this.add_wads_button.Click += new System.EventHandler(this.add_wads_button_Click);
+            // 
+            // remove_wads
+            // 
+            this.remove_wads.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
+            this.remove_wads.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.remove_wads.Location = new System.Drawing.Point(337, 11);
+            this.remove_wads.Name = "remove_wads";
+            this.remove_wads.Size = new System.Drawing.Size(20, 20);
+            this.remove_wads.TabIndex = 4;
+            this.remove_wads.UseVisualStyleBackColor = true;
+            this.remove_wads.Click += new System.EventHandler(this.remove_wads_Click);
+            // 
+            // edit_wad_button
+            // 
+            this.edit_wad_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources._45706;
+            this.edit_wad_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.edit_wad_button.Location = new System.Drawing.Point(311, 11);
+            this.edit_wad_button.Name = "edit_wad_button";
+            this.edit_wad_button.Size = new System.Drawing.Size(20, 20);
+            this.edit_wad_button.TabIndex = 5;
+            this.edit_wad_button.UseVisualStyleBackColor = true;
+            this.edit_wad_button.Click += new System.EventHandler(this.edit_wad_button_Click);
+            // 
             // wads_label
             // 
             this.wads_label.AutoSize = true;
@@ -450,6 +510,39 @@
             this.wads_list.SelectionMode = System.Windows.Forms.SelectionMode.MultiSimple;
             this.wads_list.Size = new System.Drawing.Size(411, 361);
             this.wads_list.TabIndex = 3;
+            // 
+            // add_engines
+            // 
+            this.add_engines.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
+            this.add_engines.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.add_engines.Location = new System.Drawing.Point(352, 11);
+            this.add_engines.Name = "add_engines";
+            this.add_engines.Size = new System.Drawing.Size(20, 20);
+            this.add_engines.TabIndex = 5;
+            this.add_engines.UseVisualStyleBackColor = true;
+            this.add_engines.Click += new System.EventHandler(this.add_engines_Click);
+            // 
+            // remove_engines
+            // 
+            this.remove_engines.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
+            this.remove_engines.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.remove_engines.Location = new System.Drawing.Point(326, 11);
+            this.remove_engines.Name = "remove_engines";
+            this.remove_engines.Size = new System.Drawing.Size(20, 20);
+            this.remove_engines.TabIndex = 5;
+            this.remove_engines.UseVisualStyleBackColor = true;
+            this.remove_engines.Click += new System.EventHandler(this.remove_engines_Click);
+            // 
+            // edit_engine_button
+            // 
+            this.edit_engine_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources._45706;
+            this.edit_engine_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.edit_engine_button.Location = new System.Drawing.Point(300, 11);
+            this.edit_engine_button.Name = "edit_engine_button";
+            this.edit_engine_button.Size = new System.Drawing.Size(20, 20);
+            this.edit_engine_button.TabIndex = 6;
+            this.edit_engine_button.UseVisualStyleBackColor = true;
+            this.edit_engine_button.Click += new System.EventHandler(this.edit_engine_button_Click);
             // 
             // engines_label
             // 
@@ -505,98 +598,6 @@
             this.timer1.Enabled = true;
             this.timer1.Interval = 1000;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
-            // 
-            // add_mod_button
-            // 
-            this.add_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.add_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
-            this.add_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.add_mod_button.Location = new System.Drawing.Point(597, 86);
-            this.add_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
-            this.add_mod_button.Name = "add_mod_button";
-            this.add_mod_button.Size = new System.Drawing.Size(20, 20);
-            this.add_mod_button.TabIndex = 12;
-            this.add_mod_button.UseVisualStyleBackColor = true;
-            this.add_mod_button.Click += new System.EventHandler(this.add_mod_button_Click);
-            // 
-            // remove_mod_button
-            // 
-            this.remove_mod_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.remove_mod_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
-            this.remove_mod_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.remove_mod_button.Location = new System.Drawing.Point(571, 86);
-            this.remove_mod_button.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
-            this.remove_mod_button.Name = "remove_mod_button";
-            this.remove_mod_button.Size = new System.Drawing.Size(20, 20);
-            this.remove_mod_button.TabIndex = 13;
-            this.remove_mod_button.UseVisualStyleBackColor = true;
-            this.remove_mod_button.Click += new System.EventHandler(this.remove_mod_button_Click);
-            // 
-            // add_wads_button
-            // 
-            this.add_wads_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
-            this.add_wads_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.add_wads_button.Location = new System.Drawing.Point(363, 11);
-            this.add_wads_button.Name = "add_wads_button";
-            this.add_wads_button.Size = new System.Drawing.Size(20, 20);
-            this.add_wads_button.TabIndex = 2;
-            this.add_wads_button.UseVisualStyleBackColor = true;
-            this.add_wads_button.Click += new System.EventHandler(this.add_wads_button_Click);
-            // 
-            // remove_wads
-            // 
-            this.remove_wads.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
-            this.remove_wads.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.remove_wads.Location = new System.Drawing.Point(337, 11);
-            this.remove_wads.Name = "remove_wads";
-            this.remove_wads.Size = new System.Drawing.Size(20, 20);
-            this.remove_wads.TabIndex = 4;
-            this.remove_wads.UseVisualStyleBackColor = true;
-            this.remove_wads.Click += new System.EventHandler(this.remove_wads_Click);
-            // 
-            // edit_wad_button
-            // 
-            this.edit_wad_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources._45706;
-            this.edit_wad_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.edit_wad_button.Location = new System.Drawing.Point(311, 11);
-            this.edit_wad_button.Name = "edit_wad_button";
-            this.edit_wad_button.Size = new System.Drawing.Size(20, 20);
-            this.edit_wad_button.TabIndex = 5;
-            this.edit_wad_button.UseVisualStyleBackColor = true;
-            this.edit_wad_button.Click += new System.EventHandler(this.edit_wad_button_Click);
-            // 
-            // add_engines
-            // 
-            this.add_engines.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.R;
-            this.add_engines.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.add_engines.Location = new System.Drawing.Point(352, 11);
-            this.add_engines.Name = "add_engines";
-            this.add_engines.Size = new System.Drawing.Size(20, 20);
-            this.add_engines.TabIndex = 5;
-            this.add_engines.UseVisualStyleBackColor = true;
-            this.add_engines.Click += new System.EventHandler(this.add_engines_Click);
-            // 
-            // remove_engines
-            // 
-            this.remove_engines.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources.Red_Minus_Symbol_PNG_Image;
-            this.remove_engines.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.remove_engines.Location = new System.Drawing.Point(326, 11);
-            this.remove_engines.Name = "remove_engines";
-            this.remove_engines.Size = new System.Drawing.Size(20, 20);
-            this.remove_engines.TabIndex = 5;
-            this.remove_engines.UseVisualStyleBackColor = true;
-            this.remove_engines.Click += new System.EventHandler(this.remove_engines_Click);
-            // 
-            // edit_engine_button
-            // 
-            this.edit_engine_button.BackgroundImage = global::Doom_Launcher_Project.Properties.Resources._45706;
-            this.edit_engine_button.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.edit_engine_button.Location = new System.Drawing.Point(300, 11);
-            this.edit_engine_button.Name = "edit_engine_button";
-            this.edit_engine_button.Size = new System.Drawing.Size(20, 20);
-            this.edit_engine_button.TabIndex = 6;
-            this.edit_engine_button.UseVisualStyleBackColor = true;
-            this.edit_engine_button.Click += new System.EventHandler(this.edit_engine_button_Click);
             // 
             // Launcher_Window
             // 

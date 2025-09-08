@@ -569,6 +569,7 @@ namespace Doom_Launcher_Project
                 string temp_name = string.Empty;
                 string json = File.ReadAllText(Globals.wad_config_path);
                 Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json);
+                self.wad_selection.Items.Add("(None)");
                 foreach (Globals.WADListStructure wad in Globals.WADList)
                 {
                     temp_name = wad.WAD_Name;
@@ -627,7 +628,7 @@ namespace Doom_Launcher_Project
 
         public void Load_MapsToList(Launcher_Window self)
         {
-            if (self.wad_selection.SelectedItem != null)
+            if (self.wad_selection.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
             {
                 string normalized = self.wad_selection.SelectedItem.ToString().ToLowerInvariant();
                 normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // remove punctuation/space
@@ -656,6 +657,7 @@ namespace Doom_Launcher_Project
             }
             else
             {
+                self.map_selection.Items.Clear();
                 return;
             }
         }
@@ -709,30 +711,36 @@ namespace Doom_Launcher_Project
                         }
                     }
                 }
-                if (self.wad_selection.SelectedItem != null)
+                if (self.wad_selection.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
                 {
                     foreach (Globals.WADListStructure wad in Globals.WADList)
                     {
                         if (wad.WAD_Name == self.wad_selection.SelectedItem.ToString())
                         {
-                            selected_wad = wad.WAD_Dir;
+                            selected_wad = $"{" -iwad \"" + wad.WAD_Dir + "\""}";
                             break;
                         }
                     }
                 }
+                else 
+                {
+                    selected_wad = "";   
+                }
                 if (self.mods_selection.SelectedItem != null)
                 {
+                    string preselected_mod = string.Empty;
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
                     {
                         foreach (string selected_mod_item in self.mods_selection.CheckedItems)
                         {
                             if (mod.Mod_Name == selected_mod_item.ToString())
                             {
-                                selected_mod = selected_mod + "\"" + mod.Mod_Dir + "\" ";
+                                preselected_mod = preselected_mod + "\"" + mod.Mod_Dir + "\" ";
                                 break;
                             }
                         }
                     }
+                    selected_mod = $"{" -file " + preselected_mod}";
                 }
 
                 //dufficulty and map selection
@@ -1118,7 +1126,7 @@ namespace Doom_Launcher_Project
                 }
 
                 //build the play command
-                arguments = $"{"-iwad \"" + selected_wad + "\"" + selected_difficulty + selected_map + " -file " + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit}";
+                arguments = $"{selected_wad + selected_difficulty + selected_map + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit}";
                 self.command_line_view.Text = $"{selected_engine} {arguments}";
                 //load the command line to globals for launching the game
                 Globals.game_launch_engine = selected_engine;

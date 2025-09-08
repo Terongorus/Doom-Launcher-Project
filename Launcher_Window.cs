@@ -137,5 +137,10 @@ namespace Doom_Launcher_Project
             Game_Options game_options = new Game_Options();
             game_options.OnlineModeEnable(this);
         }
+
+        private void mods_selection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }
