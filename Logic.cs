@@ -640,6 +640,8 @@ namespace Doom_Launcher_Project
                     {
                         self.map_selection.Items.Add(map);
                     }
+                    //make sure the default setting is applied for less confusion
+                    self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                 }
                 else if (Globals.match_2.Any(match => normalized.Contains(match.ToLowerInvariant())))
                 {
@@ -648,6 +650,8 @@ namespace Doom_Launcher_Project
                     {
                         self.map_selection.Items.Add(map);
                     }
+                    //make sure the default setting is applied for less confusion
+                    self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                 }
                 else
                 {
@@ -704,12 +708,17 @@ namespace Doom_Launcher_Project
                 {
                     foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
                     {
-                        if (engine.Engine_Name == self.engine_selection.SelectedItem.ToString())
+                        //string selection = self.engine_selection.Items.IndexOf(self.engine_selection.SelectedItem).ToString();
+                        if (Globals.EnginesList.IndexOf(engine) == self.engine_selection.SelectedIndex)
                         {
                             selected_engine = engine.Engine_Dir;
                             break;
                         }
                     }
+                }
+                else 
+                {
+                    selected_engine = "";
                 }
                 if (self.wad_selection.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
                 {
@@ -722,9 +731,9 @@ namespace Doom_Launcher_Project
                         }
                     }
                 }
-                else 
+                else
                 {
-                    selected_wad = "";   
+                    selected_wad = "";
                 }
                 if (self.mods_selection.SelectedItem != null)
                 {
