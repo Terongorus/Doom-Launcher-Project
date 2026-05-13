@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.ComponentModel; // <-- Add this using directive
+using System.Text.Json.Serialization;
+using System.Windows.Forms;
 
 namespace Doom_Launcher_Project
 {
     public static class  Globals
     {
+        // Flag to prevent Save_GameOptions from triggering while Load_GameOptions is setting UI values
+        public static bool IsLoadingConfig = false;
         public static string game_launch_engine = string.Empty;
         public static string game_launch_arguments = string.Empty;
         public static string game_launch_command = string.Empty;
-
-        //config file paths
+        public static string SelectedProfile = "Default";
+        public static RootConfig Profiles = new RootConfig();
         public static string wad_config_path = "wad_config.json";
         public static string engine_config_path = "engine_config.json";
         public static string mods_config_path = "mods_config.json";
@@ -135,8 +136,8 @@ namespace Doom_Launcher_Project
 
         public class WADMatchListStructure
         {
-            public string wad_name { get; set; }
-            public string wad_name_2 { get; set; }
+            public string wad_name { get; set; } = string.Empty;
+            public string wad_name_2 { get; set; } = string.Empty;
         }
         public static BindingList<WADMatchListStructure> MATCHWADLIST1 = new BindingList<WADMatchListStructure>();
         public static BindingList<WADMatchListStructure> MATCHWADLIST2 = new BindingList<WADMatchListStructure>();
@@ -144,8 +145,8 @@ namespace Doom_Launcher_Project
         //creates a template of the WAD list (the structure)
         public class WADListStructure
         {
-            public string WAD_Name { get; set; }
-            public string WAD_Dir { get; set; }
+            public string WAD_Name { get; set; } = string.Empty;
+            public string WAD_Dir { get; set; } = string.Empty;
         }
         //creates the list that will contain the WADs
         public static BindingList<WADListStructure> WADList = new BindingList<WADListStructure>();
@@ -153,8 +154,9 @@ namespace Doom_Launcher_Project
         //creates a template of the Engines list (the structure)
         public class EnginesListStructure
         {
-            public string Engine_Name { get; set; }
-            public string Engine_Dir { get; set; }
+            public string Engine_Name { get; set; } = string.Empty;
+            public string Engine_Nickname { get; set; } = string.Empty;
+            public string Engine_Dir { get; set; } = string.Empty;
         }
         //creates the list that will contain the Engines
         public static BindingList<EnginesListStructure> EnginesList = new BindingList<EnginesListStructure>();
@@ -162,8 +164,8 @@ namespace Doom_Launcher_Project
         //creates a template of the Mods list (the structure)
         public class ModsListStructure
         {
-            public string Mod_Name { get; set; }
-            public string Mod_Dir { get; set; }
+            public string Mod_Name { get; set; } = string.Empty;
+            public string Mod_Dir { get; set; } = string.Empty;
         }
         //creates the list that will contain the Mods
         public static BindingList<ModsListStructure> ModsList = new BindingList<ModsListStructure>();
@@ -171,16 +173,27 @@ namespace Doom_Launcher_Project
         //creates a template of the Game config (the structure)
         public class GameConfigStructure
         {
-            public string Selected_Engine { get; set; }
-            public string Selected_WAD { get; set; }
-            public string Selected_Map { get; set; }
-            public string Selected_SkillLevel { get; set; }
-            public string Selected_Mods { get; set; }
+            public string Selected_Engine { get; set; } = string.Empty;
+            public string Selected_WAD { get; set; } = string.Empty;
+            public string Selected_Map { get; set; } = string.Empty;
+            public string Selected_SkillLevel { get; set; } = string.Empty;
+            public string Selected_Mods { get; set; } = string.Empty;
             public bool Enable_Multiplayer { get; set; }
-            public string Selected_Game_Mode { get; set; }
-            public string Selected_Players { get; set; }
-            public string Host { get; set; }
-            public string Port { get; set; }
+            public string Selected_Game_Mode { get; set; } = string.Empty;
+            public string Selected_Players { get; set; } = string.Empty;
+            public string Host { get; set; } = string.Empty;
+            public string Port { get; set; } = string.Empty;
+            public string Selected_FragLimit { get; set; } = string.Empty;
+            public string Selected_TimeLimit { get; set; } = string.Empty;
+            public string Selected_DMFlags { get; set; } = string.Empty;
+            public string Selected_DMFlags2 { get; set; } = string.Empty;
+        }
+
+        public class RootConfig
+        {
+            [JsonPropertyName("CONFIGURATION")]
+            public Dictionary<string, GameConfigStructure> Configuration { get; set; } = new Dictionary<string, GameConfigStructure>();
+            public string LastSelectedProfile { get; set; } = "Default"; // New property to store the last selected profile
         }
         //creates the variable that will contain the Game config
         public static BindingList<GameConfigStructure> GameConfig = new BindingList<GameConfigStructure>();

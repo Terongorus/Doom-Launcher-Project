@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using System.Text.Json;
 
 namespace Doom_Launcher_Project
 {
@@ -30,10 +22,18 @@ namespace Doom_Launcher_Project
             //loads the skill levels into the skill level dropdown menu
             Game_Options game_options = new Game_Options();
             game_options.Load_SkillLevelsToList(this);
-            game_options.Load_GameOptions(this);
-            game_options.OnlineModeEnable(this);
             game_options.Load_OnlineGameplayModes(this);
             game_options.Load_PlayerSelectList(this);
+
+            Profile_Options profile_options = new Profile_Options();
+            profile_options.Load_Profiles(this);
+
+            game_options.OnlineModeEnable(this);
+
+            this.add_profile.Click += new System.EventHandler(this.add_profile_Click);
+            this.remove_profile.Click += new System.EventHandler(this.remove_profile_Click);
+            this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
+            this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -48,8 +48,8 @@ namespace Doom_Launcher_Project
 
         private void add_wads_button_Click(object sender, EventArgs e)
         {
-           WAD_Options wad_options = new WAD_Options();
-           wad_options.AddWADs(this);
+            WAD_Options wad_options = new WAD_Options();
+            wad_options.AddWADs(this);
         }
 
         private void add_engines_Click(object sender, EventArgs e)
@@ -139,6 +139,47 @@ namespace Doom_Launcher_Project
         }
 
         private void mods_selection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void profile_select_label_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void add_profile_Click(object? sender, EventArgs e)
+        {
+            Profile_Options profile_options = new Profile_Options();
+            profile_options.AddProfile(this);
+        }
+
+        private void remove_profile_Click(object? sender, EventArgs e)
+        {
+            Profile_Options profile_options = new Profile_Options();
+            profile_options.RemoveProfile(this);
+        }
+
+        private void edit_profile_Click(object? sender, EventArgs e)
+        {
+            this.menu_control.SelectedTab = this.game_options_tab;
+        }
+
+        private void profile_select_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (profile_select.SelectedItem != null)
+            {
+                Globals.SelectedProfile = profile_select.SelectedItem!.ToString() ?? string.Empty;
+                // Update LastSelectedProfile in Globals.Profiles and save
+                Globals.Profiles.LastSelectedProfile = Globals.SelectedProfile;
+                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+
+                Game_Options game_options = new Game_Options();
+                game_options.Load_GameOptions(this);
+            }
+        }
+
+        private void map_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
 
         }
