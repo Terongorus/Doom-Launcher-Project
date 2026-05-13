@@ -1,18 +1,8 @@
-﻿using Doom_Launcher_Project.Properties;
-using System;
-using System.CodeDom;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace Doom_Launcher_Project
 {
@@ -24,12 +14,12 @@ namespace Doom_Launcher_Project
             {
                 if (string.IsNullOrEmpty(File.ReadAllText(Globals.wad_config_path)))
                 {
-                    Globals.WADList.Clear();
+                    Globals.WADList?.Clear();
                 }
                 else 
                 {
                     string json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json);
+                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
                 }
                 
                 //opens a file dialog to select WAD files
@@ -39,7 +29,7 @@ namespace Doom_Launcher_Project
                     Filter = "WAD Files (*.wad)|*.wad|All Files (*.*)|*.*",
                     Multiselect = true
                 };
-                if (WADFileDialog.ShowDialog() == DialogResult.OK)
+                if (WADFileDialog.ShowDialog() == DialogResult.OK && Globals.WADList != null && self.wads_list != null)
                 {
                     foreach (string file in WADFileDialog.FileNames)
                     {
@@ -83,16 +73,16 @@ namespace Doom_Launcher_Project
         {
             if (File.Exists(Globals.wad_config_path))
             {
-                self.wads_list.Items.Clear();
-                if (File.ReadAllText(Globals.wad_config_path) != null || File.ReadAllText(Globals.wad_config_path) != string.Empty)
+                self.wads_list?.Items.Clear();
+                string json = File.ReadAllText(Globals.wad_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
                 {
-                    string json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json);
+                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
                     foreach (Globals.WADListStructure wad_file in Globals.WADList)
                     {
-                        if ((wad_file.WAD_Name != null || wad_file.WAD_Name != string.Empty) && (wad_file.WAD_Dir != null || wad_file.WAD_Dir != string.Empty))
+                        if (!string.IsNullOrEmpty(wad_file.WAD_Name) && !string.IsNullOrEmpty(wad_file.WAD_Dir))
                         {
-                            self.wads_list.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
+                            self.wads_list?.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
                         }
                         else
                         {
@@ -121,15 +111,17 @@ namespace Doom_Launcher_Project
 
         public void Remove_WAD(Launcher_Window self)
         {
-            if (self.wads_list.SelectedItem != null)
+            if (self.wads_list?.SelectedItems.Count > 0 && Globals.WADList != null)
             {
-                while (self.wads_list.SelectedItems.Count > 0)
+                // Batch removals and save once to disk
+                var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
+                foreach (int index in selectedIndices)
                 {
-                    int selectedIndex = self.wads_list.SelectedIndex;
-                    self.wads_list.Items.RemoveAt(selectedIndex);
-                    Globals.WADList.RemoveAt(selectedIndex);
-                    File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize((Globals.WADList)));
+                    self.wads_list?.Items.RemoveAt(index);
+                    Globals.WADList.RemoveAt(index);
                 }
+                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
+
                 Game_Options game_options = new Game_Options();
                 game_options.Load_WADsToList(self);
 
@@ -145,7 +137,7 @@ namespace Doom_Launcher_Project
         {
             if (File.Exists(Globals.wad_config_path))
             {
-                if (self.wads_list.SelectedItems != null && !(self.wads_list.SelectedItems.Count > 1))
+                if (self.wads_list != null && self.wads_list.SelectedItems.Count <= 1)
                 {
                     
                 }
@@ -161,12 +153,12 @@ namespace Doom_Launcher_Project
             { 
                 if (string.IsNullOrEmpty(File.ReadAllText(Globals.engine_config_path)))
                 {
-                    Globals.EnginesList.Clear();
+                    Globals.EnginesList?.Clear();
                 }
                 else 
                 {
                     string json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json);
+                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
                 }
 
                 //opens a file dialog to select engine files
@@ -176,21 +168,22 @@ namespace Doom_Launcher_Project
                     Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
                     Multiselect = true
                 };
-                if (EngineFileDialog.ShowDialog() == DialogResult.OK)
+                if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
                 {
                     foreach (string file in EngineFileDialog.FileNames)
                     {
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
+                        if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                         {
                             continue; // Skip adding this duplicate engine
                         }
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
+                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
                         {
                             Globals.EnginesList.RemoveAt(0);
                         }
                         Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
                         {
                             Engine_Name = Path.GetFileNameWithoutExtension(file),
+                            Engine_Nickname = Path.GetDirectoryName(file) ?? string.Empty,
                             Engine_Dir = file
                         };
                         Globals.EnginesList.Add(engine_entry);
@@ -209,7 +202,7 @@ namespace Doom_Launcher_Project
             {
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
                 //MessageBox.Show("No configuration file found. A new one has been created. Please add engine files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -220,14 +213,14 @@ namespace Doom_Launcher_Project
         {
             if (File.Exists(Globals.engine_config_path))
             {
-                self.engines_list.Items.Clear();
+                self.engines_list?.Items.Clear();
                 string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json);
+                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
                 foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
                 {
-                    if ((engine_file.Engine_Name != null || engine_file.Engine_Name != string.Empty) && (engine_file.Engine_Dir != null || engine_file.Engine_Dir != string.Empty))
+                    if (!string.IsNullOrEmpty(engine_file.Engine_Name) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
                     {
-                        self.engines_list.Items.Add(engine_file.Engine_Name + " [" + engine_file.Engine_Dir + "]");
+                        self.engines_list?.Items.Add(engine_file.Engine_Name + " [" + engine_file.Engine_Dir + "]");
                     }
                     else
                     {
@@ -243,7 +236,7 @@ namespace Doom_Launcher_Project
                 //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
             }
@@ -251,12 +244,12 @@ namespace Doom_Launcher_Project
 
         public void Remove_Engine(Launcher_Window self)
         {
-            if (self.engines_list.SelectedItem != null)
+            if (self.engines_list?.SelectedItem != null && Globals.EnginesList != null)
             {
-                while (self.engines_list.SelectedItems.Count > 0)
+                while (self.engines_list?.SelectedItems.Count > 0)
                 {
                     int selectedIndex = self.engines_list.SelectedIndex;
-                    self.engines_list.Items.RemoveAt(selectedIndex);
+                    self.engines_list?.Items.RemoveAt(selectedIndex);
                     Globals.EnginesList.RemoveAt(selectedIndex);
                     File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize((Globals.EnginesList)));
                 }
@@ -282,12 +275,12 @@ namespace Doom_Launcher_Project
                 string temp_name = string.Empty;
                 if (string.IsNullOrEmpty(File.ReadAllText(Globals.mods_config_path)))
                 {
-                    Globals.ModsList.Clear();
+                    Globals.ModsList?.Clear();
                 }
                 else
                 {
                     string mods_json = File.ReadAllText(Globals.mods_config_path);
-                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json);
+                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
                 }
 
                 //opens a file dialog to select mod files
@@ -297,11 +290,11 @@ namespace Doom_Launcher_Project
                     Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
                     Multiselect = true
                 };
-                if (ModFileDialog.ShowDialog() == DialogResult.OK)
+                if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
                 {
                     foreach (string file in ModFileDialog.FileNames)
                     {
-                        if (Globals.ModsList.Any(m => m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
+                        if (Globals.ModsList.Any(m => m.Mod_Dir != null && m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                         {
                             continue;
                         }
@@ -340,42 +333,33 @@ namespace Doom_Launcher_Project
         {
             if (File.Exists(Globals.mods_config_path))
             {
-                self.mods_selection.Items.Clear();
+                self.mods_selection?.Items.Clear();
                 string json = File.ReadAllText(Globals.mods_config_path);
-                Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json);
+                Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json) ?? new();
                 foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
                 {
-                    if ((mod_file.Mod_Name != null || mod_file.Mod_Name != string.Empty) && (mod_file.Mod_Dir != null || mod_file.Mod_Dir != string.Empty))
+                    if (!string.IsNullOrEmpty(mod_file.Mod_Name))
                     {
-                        self.mods_selection.Items.Add(mod_file.Mod_Name);
+                        self.mods_selection?.Items.Add(mod_file.Mod_Name!);
                     }
-                    else
-                    {
-                        MessageBox.Show("One or more mod entries in the configuration file are invalid. Please check mods_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        break;
-                    }
+                    // If Mod_Name is empty, just skip it. No need for a MessageBox.
                 }
             }
             else
             {
-                Globals.ModsList = new BindingList<Globals.ModsListStructure>
-                {
-                    new Globals.ModsListStructure {Mod_Name = "", Mod_Dir = ""}
-                };
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
-                //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                //return;
+                Globals.ModsList = new BindingList<Globals.ModsListStructure>(); // Initialize as empty list
+                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList)); // Write empty list to file
             }
         }
 
         public void Remove_Mod(Launcher_Window self)
         {
-            if (self.mods_selection.SelectedItem != null)
+            if (self.mods_selection != null && self.mods_selection.SelectedItem != null && Globals.ModsList != null)
             {
-                while (self.mods_selection.SelectedItems.Count > 0)
+                while (self.mods_selection?.SelectedItems.Count > 0)
                 {
                     int selectedIndex = self.mods_selection.SelectedIndex;
-                    self.mods_selection.Items.RemoveAt(selectedIndex);
+                    self.mods_selection?.Items.RemoveAt(selectedIndex);
                     Globals.ModsList.RemoveAt(selectedIndex);
                     File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize((Globals.ModsList)));
                 }
@@ -391,6 +375,28 @@ namespace Doom_Launcher_Project
 
     public class Game_Options
     {
+        public Globals.GameConfigStructure GetConfigFromUI(Launcher_Window self)
+        {
+            return new Globals.GameConfigStructure
+            {
+                Selected_Engine = self.engine_selection?.SelectedItem?.ToString() ?? string.Empty,
+                Selected_WAD = self.wad_selection?.SelectedItem?.ToString() ?? string.Empty,
+                Selected_Map = self.map_selection?.SelectedItem?.ToString() ?? string.Empty,
+                Selected_SkillLevel = self.difficulty_selection?.SelectedItem?.ToString() ?? string.Empty,
+                Selected_Mods = self.mods_selection?.CheckedItems.Count > 0 ? string.Join(";", self.mods_selection.CheckedItems.Cast<string>()) : string.Empty,
+                //online gameplay options save
+                Enable_Multiplayer = self.enable_multiplayer?.Checked ?? false,
+                Selected_Game_Mode = self.multiplayer_game_mode_select?.SelectedItem?.ToString() ?? string.Empty,
+                Selected_Players = self.players_host_select?.SelectedItem?.ToString() ?? string.Empty,
+                Host = self.hostname_ip_textbox?.Text ?? string.Empty,
+                Port = self.port_textbox?.Text ?? string.Empty,
+                Selected_FragLimit = self.frag_limit?.Text ?? string.Empty,
+                Selected_TimeLimit = self.time_limit?.Text ?? string.Empty,
+                Selected_DMFlags = self.dmflags?.Text ?? string.Empty,
+                Selected_DMFlags2 = self.dmflags2?.Text ?? string.Empty
+            };
+        }
+
         public void ProductDetails(Launcher_Window self)
         {
             string ProductName = "Teron's Doom Launcher (TDL)";
@@ -401,7 +407,7 @@ namespace Doom_Launcher_Project
 
         public void OnlineModeEnable(Launcher_Window self)
         {
-            if (self.enable_multiplayer.Checked == true)
+            if (self.enable_multiplayer?.Checked == true)
             {
                 self.game_mode_label.Enabled = true;
                 self.multiplayer_game_mode_select.Enabled = true;
@@ -443,25 +449,15 @@ namespace Doom_Launcher_Project
 
         public void Save_GameOptions(Launcher_Window self)
         {
+            // If we are currently loading the config into the UI, do not save.
+            // This prevents programmatic UI changes from overwriting the JSON with empty values.
+            if (Globals.IsLoadingConfig)
+                return;
+
             if (File.Exists(Globals.game_config_path))
             {
-                Globals.GameConfig.Clear();
-                Globals.GameConfigStructure game_config_entry = new Globals.GameConfigStructure
-                {
-                    Selected_Engine = self.engine_selection.SelectedItem != null ? self.engine_selection.SelectedItem.ToString() : string.Empty,
-                    Selected_WAD = self.wad_selection.SelectedItem != null ? self.wad_selection.SelectedItem.ToString() : string.Empty,
-                    Selected_Map = self.map_selection.SelectedItem != null ? self.map_selection.SelectedItem.ToString() : string.Empty,
-                    Selected_SkillLevel = self.difficulty_selection.SelectedItem != null ? self.difficulty_selection.SelectedItem.ToString() : string.Empty,
-                    Selected_Mods = self.mods_selection.CheckedItems.Count > 0 ? string.Join(";", self.mods_selection.CheckedItems.Cast<string>()) : string.Empty,
-                    //online gameplay options save
-                    Enable_Multiplayer = self.enable_multiplayer.Checked,
-                    Selected_Game_Mode = self.multiplayer_game_mode_select.SelectedItem != null ? self.multiplayer_game_mode_select.SelectedItem.ToString() : string.Empty,
-                    Selected_Players = self.players_host_select.SelectedItem != null ? self.players_host_select.SelectedItem.ToString() : string.Empty,  
-                    Host = self.hostname_ip_textbox.Text != null ? self.hostname_ip_textbox.Text : string.Empty,
-                    Port = self.port_textbox.Text != null ? self.port_textbox.Text : string.Empty
-                };
-                Globals.GameConfig.Add(game_config_entry);
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize((Globals.GameConfig)));
+                Globals.Profiles.Configuration[Globals.SelectedProfile] = GetConfigFromUI(self);
+                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
             }
             else
             {
@@ -472,92 +468,116 @@ namespace Doom_Launcher_Project
 
         public void Load_GameOptions(Launcher_Window self)
         {
-            if (File.Exists(Globals.game_config_path) && self.wad_selection.Items != null && self.engine_selection.Items != null)
-            {
-                if (!string.IsNullOrEmpty(File.ReadAllText(Globals.game_config_path)) && (Globals.GameConfig != null))
-                {
-                    string game_json = File.ReadAllText(Globals.game_config_path);
-                    string wad_json = File.ReadAllText(Globals.wad_config_path);
-                    string engine_json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.GameConfig = JsonSerializer.Deserialize<BindingList<Globals.GameConfigStructure>>(game_json);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json);
-                    foreach (Globals.GameConfigStructure config in Globals.GameConfig.ToList())
-                    {
-                        foreach (Globals.WADListStructure wad in Globals.WADList)
-                        {
-                            if (wad.WAD_Name == config.Selected_WAD)
-                            {
-                                self.wad_selection.SelectedIndex = self.wad_selection.Items.IndexOf(wad.WAD_Name.ToString());
-                                this.Load_MapsToList(self);
-                                break;
-                            }
-                            else
-                            {
-                                self.wad_selection.SelectedIndex = -1;
-                            }
-                        }
-                    }
-                    foreach (Globals.GameConfigStructure config in Globals.GameConfig.ToList())
-                    {
-                        foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
-                        {
-                            if (engine.Engine_Name == config.Selected_Engine)
-                            {
-                                self.engine_selection.SelectedIndex = self.engine_selection.Items.IndexOf(engine.Engine_Name.ToString());
-                                break;
-                            }
-                            else
-                            { 
-                                self.engine_selection.SelectedIndex = -1;
-                            }
-                        }
-                    }
-                    foreach (Globals.GameConfigStructure config in Globals.GameConfig)
-                    {
-                        foreach (Globals.ModsListStructure mod in Globals.ModsList)
-                        {
-                            foreach (string selected_mod in config.Selected_Mods.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                            {
-                                if (mod.Mod_Name == selected_mod)
-                                {
-                                    self.mods_selection.SetItemChecked(self.mods_selection.Items.IndexOf(mod.Mod_Name.ToString()), true);
-                                    break;
-                                }
-                                else
-                                {
-                                    self.mods_selection.SetItemChecked(self.mods_selection.Items.IndexOf(mod.Mod_Name.ToString()), false);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    foreach (Globals.GameConfigStructure config in Globals.GameConfig.ToList())
-                    {
-                        //load online settings
-                        self.enable_multiplayer.Checked = config.Enable_Multiplayer == true ? true : false;
-                        self.multiplayer_game_mode_select.SelectedItem = config.Selected_Game_Mode != string.Empty ? self.multiplayer_game_mode_select.Items.IndexOf(config.Selected_Game_Mode.ToString()).ToString() : string.Empty;
-                        self.players_host_select.SelectedItem = config.Selected_Players != string.Empty ? self.players_host_select.Items.IndexOf(config.Selected_Players.ToString()).ToString() : string.Empty;
-                        self.hostname_ip_textbox.Text = config.Host != string.Empty ? config.Host.ToString() : string.Empty;
-                        self.port_textbox.Text = config.Port != string.Empty ? config.Port.ToString() : string.Empty;
+            if (!File.Exists(Globals.game_config_path) || self.wad_selection.Items == null || self.engine_selection.Items == null)
+                return;
 
-                        //map load settings
-                        self.difficulty_selection.SelectedItem = config.Selected_SkillLevel != string.Empty ? config.Selected_SkillLevel.ToString() : "(Default)";
-                        if (self.wad_selection.SelectedItem != null)
+            // Start the loading guard
+            Globals.IsLoadingConfig = true;
+
+            try
+            {
+                string game_json = File.ReadAllText(Globals.game_config_path);
+                if (string.IsNullOrEmpty(game_json)) return;
+
+                try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(game_json) ?? new Globals.RootConfig(); }
+                catch { Globals.Profiles = new Globals.RootConfig(); }
+
+                if (File.Exists(Globals.wad_config_path))
+                {
+                    string wad_json = File.ReadAllText(Globals.wad_config_path);
+                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
+                }
+                if (File.Exists(Globals.engine_config_path))
+                {
+                    string engine_json = File.ReadAllText(Globals.engine_config_path);
+                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
+                }
+                if (File.Exists(Globals.mods_config_path))
+                {
+                    string mods_json = File.ReadAllText(Globals.mods_config_path);
+                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
+                }
+
+                if (Globals.Profiles.Configuration.TryGetValue(Globals.SelectedProfile, out var config))
+                {
+
+                    if (!string.IsNullOrEmpty(config.Selected_WAD))
+                    {
+                        Globals.WADListStructure? selectedWadEntry = Globals.WADList.FirstOrDefault(w => w.WAD_Name == config.Selected_WAD);
+                        if (selectedWadEntry != null)
                         {
-                            self.map_selection.SelectedItem = config.Selected_Map != string.Empty ? config.Selected_Map.ToString() : null;
+                            int index = self.wad_selection.Items.IndexOf(selectedWadEntry.WAD_Name);
+                            if (index != -1)
+                            {
+                                self.wad_selection.SelectedIndex = index;
+                                this.Load_MapsToList(self);
+                            }
                         }
-                        else
+                    }
+
+                    if (!string.IsNullOrEmpty(config.Selected_Engine))
+                    {
+                        Globals.EnginesListStructure? selectedEngineEntry = Globals.EnginesList.FirstOrDefault(e => e.Engine_Nickname == config.Selected_Engine);
+                        if (selectedEngineEntry != null)
                         {
-                            self.map_selection.SelectedItem = null;
+                            int index = self.engine_selection.Items.IndexOf(selectedEngineEntry.Engine_Nickname);
+                            if (index != -1)
+                                self.engine_selection.SelectedIndex = index;
                         }
+                    }
+
+                    for (int i = 0; i < self.mods_selection.Items.Count; i++)
+                        self.mods_selection.SetItemChecked(i, false);
+
+                    if (!string.IsNullOrEmpty(config.Selected_Mods))
+                    {
+                        string[] selectedModNames = config.Selected_Mods.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                        foreach (string modName in selectedModNames)
+                        {
+                            int index = self.mods_selection.Items.IndexOf(modName);
+                            if (index != -1)
+                                self.mods_selection.SetItemChecked(index, true);
+                        }
+                    }
+
+                    self.enable_multiplayer.Checked = config.Enable_Multiplayer;
+
+                    if (!string.IsNullOrEmpty(config.Selected_Game_Mode))
+                    {
+                        int index = self.multiplayer_game_mode_select.Items.IndexOf(config.Selected_Game_Mode);
+                        if (index != -1) self.multiplayer_game_mode_select.SelectedIndex = index;
+                    }
+
+                    if (!string.IsNullOrEmpty(config.Selected_Players))
+                    {
+                        int index = self.players_host_select.Items.IndexOf(config.Selected_Players);
+                        if (index != -1) self.players_host_select.SelectedIndex = index;
+                    }
+
+                    self.hostname_ip_textbox.Text = config.Host;
+                    self.port_textbox.Text = config.Port;
+                    if (self.frag_limit != null) self.frag_limit.Text = config.Selected_FragLimit;
+                    if (self.time_limit != null) self.time_limit.Text = config.Selected_TimeLimit;
+                    if (self.dmflags != null) self.dmflags.Text = config.Selected_DMFlags;
+                    if (self.dmflags2 != null) self.dmflags2.Text = config.Selected_DMFlags2;
+
+                    if (!string.IsNullOrEmpty(config.Selected_SkillLevel))
+                    {
+                        int index = self.difficulty_selection.Items.IndexOf(config.Selected_SkillLevel);
+                        if (index != -1) self.difficulty_selection.SelectedIndex = index;
+                    }
+
+                    if (self.wad_selection.SelectedItem != null && !string.IsNullOrEmpty(config.Selected_Map))
+                    {
+                        int index = self.map_selection.Items.IndexOf(config.Selected_Map);
+                        if (index != -1) self.map_selection.SelectedIndex = index;
                     }
                 }
             }
-            else
+            finally
             {
-                File.WriteAllText(Globals.game_config_path, string.Empty);
-                MessageBox.Show("No configuration file found. A new one has been created. Please save game options again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Always ensure the guard is released
+                Globals.IsLoadingConfig = false;
             }
         }
 
@@ -568,11 +588,11 @@ namespace Doom_Launcher_Project
                 self.wad_selection.Items.Clear();
                 string temp_name = string.Empty;
                 string json = File.ReadAllText(Globals.wad_config_path);
-                Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json);
+                Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
                 self.wad_selection.Items.Add("(None)");
                 foreach (Globals.WADListStructure wad in Globals.WADList)
                 {
-                    temp_name = wad.WAD_Name;
+                    temp_name = wad.WAD_Name ?? string.Empty;
                     self.wad_selection.Items.Add(temp_name);
                 }
             }
@@ -585,10 +605,10 @@ namespace Doom_Launcher_Project
                 self.engine_selection.Items.Clear();
                 string temp_name = string.Empty;
                 string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json);
+                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
                 foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
                 {
-                    temp_name = engine.Engine_Name;
+                    temp_name = engine.Engine_Nickname ?? string.Empty;
                     self.engine_selection.Items.Add(temp_name);
                 }
             }
@@ -597,61 +617,67 @@ namespace Doom_Launcher_Project
         public void Load_OnlineGameplayModes(Launcher_Window self)
         {
             //populate the game mode selection
-            self.multiplayer_game_mode_select.Items.Clear();
-            self.multiplayer_game_mode_select.Items.Add("CO-OP");
-            self.multiplayer_game_mode_select.Items.Add("Deathmatch");
-            self.multiplayer_game_mode_select.Items.Add("Alt Deathmatch");
+            self.multiplayer_game_mode_select?.Items.Clear();
+            self.multiplayer_game_mode_select?.Items.Add("CO-OP");
+            self.multiplayer_game_mode_select?.Items.Add("Deathmatch");
+            self.multiplayer_game_mode_select?.Items.Add("Alt Deathmatch");
         }
 
         public void Load_PlayerSelectList(Launcher_Window self)
         {
             //populate the players (host/join) selection
-            self.players_host_select.Items.Clear();
-            self.players_host_select.Items.Add("Join");
+            self.players_host_select?.Items.Clear();
+            self.players_host_select?.Items.Add("Join");
             for (int cnt1 = 1; cnt1 < 9; cnt1++)
             {
-                self.players_host_select.Items.Add("Host " + cnt1);
+                self.players_host_select?.Items.Add("Host " + cnt1);
             }
-            self.players_host_select.Items.Add("(More)");
+            self.players_host_select?.Items.Add("(More)");
         }
 
         public void Load_SkillLevelsToList(Launcher_Window self)
         {
-            self.difficulty_selection.Items.Clear();
-            self.difficulty_selection.Items.Add("(Default)");
-            self.difficulty_selection.Items.Add("Very Easy");
-            self.difficulty_selection.Items.Add("Easy");
-            self.difficulty_selection.Items.Add("Medium");
-            self.difficulty_selection.Items.Add("Hard");
-            self.difficulty_selection.Items.Add("Very Hard");
+            self.difficulty_selection?.Items.Clear();
+            self.difficulty_selection?.Items.Add("(Default)");
+            self.difficulty_selection?.Items.Add("Very Easy");
+            self.difficulty_selection?.Items.Add("Easy");
+            self.difficulty_selection?.Items.Add("Medium");
+            self.difficulty_selection?.Items.Add("Hard");
+            self.difficulty_selection?.Items.Add("Very Hard");
         }
 
         public void Load_MapsToList(Launcher_Window self)
         {
-            if (self.wad_selection.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
+            if (self.wad_selection?.SelectedItem?.ToString() is string selectedWad && selectedWad != "(None)")
             {
-                string normalized = self.wad_selection.SelectedItem.ToString().ToLowerInvariant();
+                string normalized = selectedWad.ToLowerInvariant();
                 normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // remove punctuation/space
                 normalized = normalized + ".wad";
                 if (Globals.match_1.Any(match => normalized.Contains(match.ToLowerInvariant())))
                 {
-                    self.map_selection.Items.Clear();
-                    foreach (string map in Globals.doom_1_maps)
+                    if (self.map_selection != null) // Add null check for map_selection
                     {
-                        self.map_selection.Items.Add(map);
+                        self.map_selection.Items.Clear();
+                        foreach (string map in Globals.doom_1_maps)
+                        {
+                            self.map_selection.Items.Add(map);
+                        }
+                        //make sure the default setting is applied for less confusion
+                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                     }
-                    //make sure the default setting is applied for less confusion
-                    self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                 }
                 else if (Globals.match_2.Any(match => normalized.Contains(match.ToLowerInvariant())))
                 {
-                    self.map_selection.Items.Clear();
-                    foreach (string map in Globals.doom_2_maps)
+                    if (self.map_selection != null) // Add null check for map_selection
                     {
-                        self.map_selection.Items.Add(map);
+                        self.map_selection.Items.Clear();
+                        foreach (string map in Globals.doom_2_maps)
+                        {
+                            self.map_selection.Items.Add(map);
+                        }
+                        //make sure the default setting is applied for less confusion
+                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                     }
-                    //make sure the default setting is applied for less confusion
-                    self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
                 }
                 else
                 {
@@ -661,7 +687,7 @@ namespace Doom_Launcher_Project
             }
             else
             {
-                self.map_selection.Items.Clear();
+                self.map_selection?.Items.Clear();
                 return;
             }
         }
@@ -691,20 +717,21 @@ namespace Doom_Launcher_Project
                 string selected_dmflags2 = string.Empty;
 
                 //reload the lists from the config files
-                if ((File.ReadAllText(Globals.wad_config_path) != null || File.ReadAllText(Globals.wad_config_path) != string.Empty) && (File.ReadAllText(Globals.engine_config_path) != null || File.ReadAllText(Globals.engine_config_path) != string.Empty))
+                string wad_json = File.ReadAllText(Globals.wad_config_path);
+                string engine_json = File.ReadAllText(Globals.engine_config_path);
+
+                if (!string.IsNullOrWhiteSpace(wad_json) && !string.IsNullOrWhiteSpace(engine_json))
                 {
-                    string wad_json = File.ReadAllText(Globals.wad_config_path);
-                    string engine_json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json);
+                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
+                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
                 }
                 else
                 {
                     return;
                 }
-
+                if (Globals.EnginesList == null || Globals.WADList == null) return;
                 //check if an engine, mods and a wads are selected
-                if (self.engine_selection.SelectedItem != null)
+                if (self.engine_selection?.SelectedItem != null)
                 {
                     foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
                     {
@@ -720,7 +747,7 @@ namespace Doom_Launcher_Project
                 {
                     selected_engine = "";
                 }
-                if (self.wad_selection.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
+                if (self.wad_selection?.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
                 {
                     foreach (Globals.WADListStructure wad in Globals.WADList)
                     {
@@ -735,14 +762,14 @@ namespace Doom_Launcher_Project
                 {
                     selected_wad = "";
                 }
-                if (self.mods_selection.SelectedItem != null)
+                if (self.mods_selection?.SelectedItem != null)
                 {
                     string preselected_mod = string.Empty;
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
                     {
                         foreach (string selected_mod_item in self.mods_selection.CheckedItems)
                         {
-                            if (mod.Mod_Name == selected_mod_item.ToString())
+                            if (mod.Mod_Name == selected_mod_item?.ToString())
                             {
                                 preselected_mod = preselected_mod + "\"" + mod.Mod_Dir + "\" ";
                                 break;
@@ -753,7 +780,7 @@ namespace Doom_Launcher_Project
                 }
 
                 //dufficulty and map selection
-                if (self.difficulty_selection.SelectedItem != null)
+                if (self.difficulty_selection?.SelectedItem != null)
                 {
                     switch (self.difficulty_selection.SelectedItem.ToString())
                     {
@@ -780,7 +807,7 @@ namespace Doom_Launcher_Project
                             break;
                     }
                 }
-                if (self.map_selection.SelectedItem != null)
+                if (self.map_selection?.SelectedItem != null)
                 {
                     switch (self.map_selection.SelectedItem.ToString())
                     {
@@ -1022,12 +1049,12 @@ namespace Doom_Launcher_Project
                 }
                 
                 //online game options
-                if (self.enable_multiplayer.Checked == true)
+                if (self.enable_multiplayer?.Checked == true)
                 {
                     //select the game mode for a multiplayer game
-                    if (self.multiplayer_game_mode_select.SelectedItem != null)
+                    if (self.multiplayer_game_mode_select?.SelectedItem != null)
                     {
-                        switch (self.multiplayer_game_mode_select.SelectedItem.ToString())
+                        switch (self.multiplayer_game_mode_select.SelectedItem.ToString()!)
                         {
                             case "CO_OP":
                                 selected_game_mode = "";
@@ -1043,19 +1070,19 @@ namespace Doom_Launcher_Project
                                 break;
                         }
                     }
-                    if (self.hostname_ip_textbox.Text != null && self.hostname_ip_textbox.Text != string.Empty)
+                    if (self.hostname_ip_textbox?.Text != null && self.hostname_ip_textbox.Text != string.Empty)
                     {
                         host = self.hostname_ip_textbox.Text;
                     }
                     //no need to return if port is not available (it's an optional feature)
-                    if (self.port_textbox.Text != null && self.port_textbox.Text != string.Empty)
+                    if (self.port_textbox?.Text != null && self.port_textbox.Text != string.Empty)
                     {
                         port = self.port_textbox.Text;
                     }
                     //select whether to host or join a game
-                    if (self.players_host_select.SelectedItem != null)
+                    if (self.players_host_select?.SelectedItem != null)
                     {
-                        switch (self.players_host_select.SelectedItem.ToString())
+                        switch (self.players_host_select.SelectedItem.ToString()!)
                         {
                             case "Join":
                                 if (port == null || port == string.Empty)
@@ -1100,7 +1127,7 @@ namespace Doom_Launcher_Project
                     }
 
                     //extra online game arguments
-                    if (self.frag_limit.Text != null && self.frag_limit.Text != string.Empty)
+                    if (self.frag_limit?.Text != null && self.frag_limit.Text != string.Empty)
                     {
                         selected_frag_limit = $"{" +set fraglimit " + self.frag_limit.Text}";
                     }
@@ -1108,7 +1135,7 @@ namespace Doom_Launcher_Project
                     {
                         selected_frag_limit = "";
                     }
-                    if (self.time_limit.Text != null && self.time_limit.Text != string.Empty)
+                    if (self.time_limit?.Text != null && self.time_limit.Text != string.Empty)
                     {
                         selected_time_limit = $"{" +set timelimit " + self.time_limit.Text}";
                     }
@@ -1116,7 +1143,7 @@ namespace Doom_Launcher_Project
                     {
                         selected_time_limit = "";
                     }
-                    if (self.dmflags.Text != null && self.dmflags.Text != string.Empty)
+                    if (self.dmflags?.Text != null && self.dmflags.Text != string.Empty)
                     {
                         selected_dmflags = $"{" +set dmflags " + self.dmflags.Text}";
                     }
@@ -1124,7 +1151,7 @@ namespace Doom_Launcher_Project
                     {
                         selected_dmflags = "";
                     }
-                    if (self.dmflags2.Text != null && self.dmflags2.Text != string.Empty)
+                    if (self.dmflags2?.Text != null && self.dmflags2.Text != string.Empty)
                     {
                         selected_dmflags2 = $"{" +set dmflags2 " + self.dmflags2.Text}";
                     }
@@ -1163,6 +1190,89 @@ namespace Doom_Launcher_Project
                 MessageBox.Show("An error occurred while trying to launch the game: " + ex.Message, "Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+        }
+    }
+
+    public class Profile_Options
+    {
+        public void Load_Profiles(Launcher_Window self)
+        {
+            if (File.Exists(Globals.game_config_path))
+            {
+                string json = File.ReadAllText(Globals.game_config_path);
+                if (!string.IsNullOrEmpty(json))
+                {
+                    try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(json) ?? new Globals.RootConfig(); }
+                    catch { Globals.Profiles = new Globals.RootConfig(); }
+                }
+            }
+
+            if (Globals.Profiles.Configuration.Count == 0)
+                Globals.Profiles.Configuration["Default"] = new Globals.GameConfigStructure();
+
+            self.profile_select.Items.Clear();
+            foreach (var profile in Globals.Profiles.Configuration.Keys)
+                self.profile_select.Items.Add(profile);
+
+            // Set the selected profile based on LastSelectedProfile from config, or default to "Default"
+            string profileToSelect = Globals.Profiles.LastSelectedProfile;
+            if (!self.profile_select.Items.Contains(profileToSelect))
+            {
+                profileToSelect = "Default"; // Fallback to "Default" if LastSelectedProfile is not found
+            }
+
+            Globals.SelectedProfile = profileToSelect;
+            self.profile_select.SelectedItem = profileToSelect;
+            
+        }
+
+        public void AddProfile(Launcher_Window self)
+        {
+            string profileName = Prompt.ShowDialog("Enter profile name:", "New Profile");
+            if (!string.IsNullOrWhiteSpace(profileName))
+            {
+                if (Globals.Profiles.Configuration.ContainsKey(profileName))
+                {
+                    MessageBox.Show("Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                Game_Options gameOpts = new Game_Options();
+                Globals.Profiles.Configuration[profileName] = gameOpts.GetConfigFromUI(self);
+                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                Load_Profiles(self);
+                self.profile_select.SelectedItem = profileName;
+            }
+        }
+
+        public void RemoveProfile(Launcher_Window self)
+        {
+            if (self.profile_select.SelectedItem != null)
+            {
+                string profileName = self.profile_select.SelectedItem.ToString() ?? string.Empty;
+                if (profileName == "Default") { MessageBox.Show("Cannot remove Default profile."); return; }
+                if (MessageBox.Show($"Delete profile '{profileName}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                {
+                    Globals.Profiles.Configuration.Remove(profileName);
+                    File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                    Globals.SelectedProfile = "Default";
+                    Load_Profiles(self);
+                }
+            }
+        }
+    }
+
+    public static class Prompt
+    {
+        public static string ShowDialog(string text, string caption)
+        {
+            Form prompt = new Form() { Width = 500, Height = 150, FormBorderStyle = FormBorderStyle.FixedDialog, Text = caption, StartPosition = FormStartPosition.CenterParent };
+            Label textLabel = new Label() { Left = 50, Top = 20, Text = text, Width = 400 };
+            TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
+            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 80, DialogResult = DialogResult.OK };
+            confirmation.Click += (sender, e) => { prompt.Close(); };
+            prompt.Controls.Add(textBox); prompt.Controls.Add(confirmation); prompt.Controls.Add(textLabel);
+            prompt.AcceptButton = confirmation;
+            return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : "";
         }
     }
 }
