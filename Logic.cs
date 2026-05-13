@@ -3,6 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
+using Microsoft.VisualBasic.ApplicationServices;
+using System.Reflection;
 
 namespace Doom_Launcher_Project
 {
@@ -399,10 +402,9 @@ namespace Doom_Launcher_Project
 
         public void ProductDetails(Launcher_Window self)
         {
-            string ProductName = "Teron's Doom Launcher (TDL)";
-            string ProductVersion = "v1.0.2";
-            string ProductOwner = "Terongorus";
-            self.Text = $"{ProductName} {ProductVersion} - by {ProductOwner}";
+            string ProductName = Assembly.GetExecutingAssembly().GetName().Name ?? "Unknown";
+            string ProductVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+            self.Text = $"{ProductName} - v{ProductVersion}";
         }
 
         public void OnlineModeEnable(Launcher_Window self)

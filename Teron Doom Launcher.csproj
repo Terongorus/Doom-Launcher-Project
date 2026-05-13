@@ -12,11 +12,12 @@
     <ApplicationIcon>TDL.ico</ApplicationIcon>
     <StartupObject>Doom_Launcher_Project.Init</StartupObject>
     <Version>0.1.0.5</Version>
-    <FileVersion>0.1.0.5</FileVersion>
+    <FileVersion>1.0.6.11</FileVersion>
     <Company>Teronverse</Company>
     <Product>Teron's Doom Launcher (TDL)</Product>
     <Description>DooM launcher for GZDooM and ZDooM and other ports of the original DooM engine</Description>
     <Copyright>Copyright © 2025</Copyright>
+    <AssemblyVersion>1.0.6.11</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
