@@ -25,15 +25,42 @@ namespace Doom_Launcher_Project
             game_options.Load_OnlineGameplayModes(this);
             game_options.Load_PlayerSelectList(this);
 
-            Profile_Options profile_options = new Profile_Options();
-            profile_options.Load_Profiles(this);
-
             game_options.OnlineModeEnable(this);
 
+            // Wire up events BEFORE loading the profiles. 
+            // This ensures that when Load_Profiles sets the initial selection, 
+            // the SelectedIndexChanged event actually fires and loads the data.
+            this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
+            
+            // Profile Management Buttons
             this.add_profile.Click += new System.EventHandler(this.add_profile_Click);
             this.remove_profile.Click += new System.EventHandler(this.remove_profile_Click);
             this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
-            this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
+            
+            this.map_selection.SelectedIndexChanged += (s, e) => { SyncConfig(); };
+            this.difficulty_selection.SelectedIndexChanged += (s, e) => { SyncConfig(); };
+
+            // Synchronize on Game and Multiplayer option changes
+            this.multiplayer_game_mode_select.SelectedIndexChanged += (s, e) => { SyncConfig(); };
+            this.players_host_select.SelectedIndexChanged += (s, e) => { SyncConfig(); };
+            this.hostname_ip_textbox.TextChanged += (s, e) => { SyncConfig(); };
+            this.port_textbox.TextChanged += (s, e) => { SyncConfig(); };
+            this.frag_limit.TextChanged += (s, e) => { SyncConfig(); };
+            this.time_limit.TextChanged += (s, e) => { SyncConfig(); };
+            this.dmflags.TextChanged += (s, e) => { SyncConfig(); };
+            this.dmflags2.TextChanged += (s, e) => { SyncConfig(); };
+
+            this.mods_selection.ItemCheck += (s, e) => 
+            { 
+                if (!Globals.IsLoadingConfig && this.IsHandleCreated)
+                {
+                    this.BeginInvoke(new Action(() => SyncConfig())); 
+                }
+            };
+
+            // Now load the profiles
+            Profile_Options profile_options = new Profile_Options();
+            profile_options.Load_Profiles(this);
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -80,25 +107,28 @@ namespace Doom_Launcher_Project
 
         }
 
+        private void SyncConfig()
+        {
+            Game_Options opts = new Game_Options();
+            opts.Save_GameOptions(this);
+            opts.GenerateExecutable(this);
+        }
+
         private void engine_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Game_Options game_Options = new Game_Options();
-            game_Options.Save_GameOptions(this);
-            game_Options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void play_button_Click(object sender, EventArgs e)
         {
-            Game_Options game_options = new Game_Options();
-            game_options.PlayGame(this);
+            new Game_Options().PlayGame(this);
         }
 
         private void wad_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.Load_MapsToList(this);
-            game_options.Save_GameOptions(this);
-            game_options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void Launcher_Window_FormClosed(object sender, FormClosedEventArgs e)
@@ -109,9 +139,7 @@ namespace Doom_Launcher_Project
 
         private void Launcher_Window_Click(object sender, EventArgs e)
         {
-            Game_Options game_options = new Game_Options();
-            game_options.Save_GameOptions(this);
-            game_options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void add_mod_button_Click(object sender, EventArgs e)
@@ -125,17 +153,12 @@ namespace Doom_Launcher_Project
             Mods_Options mods_options = new Mods_Options();
             mods_options.Remove_Mod(this);
         }
-
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            Game_Options game_options = new Game_Options();
-            game_options.GenerateExecutable(this);
-        }
-
+        
         private void enable_multiplayer_CheckedChanged(object sender, EventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.OnlineModeEnable(this);
+            SyncConfig();
         }
 
         private void mods_selection_SelectedIndexChanged(object sender, EventArgs e)
@@ -176,6 +199,9 @@ namespace Doom_Launcher_Project
 
                 Game_Options game_options = new Game_Options();
                 game_options.Load_GameOptions(this);
+
+                // After loading the UI from JSON, force a refresh of the executable command line
+                game_options.GenerateExecutable(this);
             }
         }
 

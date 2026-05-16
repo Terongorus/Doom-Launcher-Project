@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel; // <-- Add this using directive
+﻿using System.ComponentModel; // <-- Add this using directive
 using System.Text.Json.Serialization;
-using System.Windows.Forms;
 
 namespace Doom_Launcher_Project
 {
@@ -157,6 +154,7 @@ namespace Doom_Launcher_Project
             public string Engine_Name { get; set; } = string.Empty;
             public string Engine_Nickname { get; set; } = string.Empty;
             public string Engine_Dir { get; set; } = string.Empty;
+            public string Engine_Version { get; set; } = string.Empty;
         }
         //creates the list that will contain the Engines
         public static BindingList<EnginesListStructure> EnginesList = new BindingList<EnginesListStructure>();

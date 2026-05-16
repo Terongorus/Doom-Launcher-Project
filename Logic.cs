@@ -1,11 +1,8 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
-using Microsoft.VisualBasic.ApplicationServices;
-using System.Reflection;
 
 namespace Doom_Launcher_Project
 {
@@ -179,15 +176,30 @@ namespace Doom_Launcher_Project
                         {
                             continue; // Skip adding this duplicate engine
                         }
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
+                        if (Globals.EnginesList == null) Globals.EnginesList = new BindingList<Globals.EnginesListStructure>();
+
+                        if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || 
+                            Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)) || 
+                            Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
                         {
                             Globals.EnginesList.RemoveAt(0);
                         }
+
+                        FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(file);
+                        string version = versionInfo.FileVersion?.Trim() ?? "Unknown";
+
+                        // Normalize version: Strip leading 'g' (GZDoom) or 'v' to avoid "vg" or "vv" in the UI
+                        if (version.Length > 1 && (version.StartsWith("g", StringComparison.OrdinalIgnoreCase) || version.StartsWith("v", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            version = version.Substring(1);
+                        }
+
                         Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
                         {
                             Engine_Name = Path.GetFileNameWithoutExtension(file),
-                            Engine_Nickname = Path.GetDirectoryName(file) ?? string.Empty,
-                            Engine_Dir = file
+                            Engine_Nickname = $"{Path.GetFileNameWithoutExtension(file)} v{version}",
+                            Engine_Dir = file,
+                            Engine_Version = version
                         };
                         Globals.EnginesList.Add(engine_entry);
                     }
@@ -205,7 +217,7 @@ namespace Doom_Launcher_Project
             {
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = "", Engine_Version = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
                 //MessageBox.Show("No configuration file found. A new one has been created. Please add engine files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -223,7 +235,21 @@ namespace Doom_Launcher_Project
                 {
                     if (!string.IsNullOrEmpty(engine_file.Engine_Name) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
                     {
-                        self.engines_list?.Items.Add(engine_file.Engine_Name + " [" + engine_file.Engine_Dir + "]");
+                        string version = engine_file.Engine_Version?.Trim() ?? "";
+
+                        // Retroactively clean the display for existing entries that might have 'g' or 'v'
+                        if (version.Length > 1 && (version.StartsWith("g", StringComparison.OrdinalIgnoreCase) || version.StartsWith("v", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            version = version.Substring(1);
+                        }
+
+                        string displayText = engine_file.Engine_Name;
+                        if (!string.IsNullOrEmpty(version))
+                        {
+                            displayText += " v" + version;
+                        }
+                        displayText += " [" + engine_file.Engine_Dir + "]";
+                        self.engines_list?.Items.Add(displayText);
                     }
                     else
                     {
@@ -239,7 +265,7 @@ namespace Doom_Launcher_Project
                 //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = "", Engine_Version = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
             }
@@ -446,6 +472,19 @@ namespace Doom_Launcher_Project
                 self.dmflags.Enabled = false;
                 self.dmflags2_label.Enabled = false;
                 self.dmflags2.Enabled = false;
+
+                // Clear multiplayer values from UI if the user manually disabled the mode
+                if (!Globals.IsLoadingConfig)
+                {
+                    if (self.multiplayer_game_mode_select != null) self.multiplayer_game_mode_select.SelectedIndex = -1;
+                    if (self.players_host_select != null) self.players_host_select.SelectedIndex = -1;
+                    self.hostname_ip_textbox?.Clear();
+                    self.port_textbox?.Clear();
+                    self.frag_limit?.Clear();
+                    self.time_limit?.Clear();
+                    self.dmflags?.Clear();
+                    self.dmflags2?.Clear();
+                }
             }
         }
 
@@ -466,6 +505,36 @@ namespace Doom_Launcher_Project
                 File.WriteAllText(Globals.game_config_path, string.Empty);
                 MessageBox.Show("No configuration file found. A new one has been created. Please save game options again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+        }
+
+        private void Clear_GameOptionsUI(Launcher_Window self)
+        {
+            // Reset selections to defaults or -1
+            if (self.engine_selection != null) self.engine_selection.SelectedIndex = -1;
+            
+            if (self.wad_selection != null) 
+                self.wad_selection.SelectedIndex = self.wad_selection.Items.IndexOf("(None)");
+
+            if (self.map_selection != null) self.map_selection.Items.Clear();
+            if (self.difficulty_selection != null) self.difficulty_selection.SelectedIndex = -1;
+
+            if (self.mods_selection != null)
+            {
+                for (int i = 0; i < self.mods_selection.Items.Count; i++)
+                    self.mods_selection.SetItemChecked(i, false);
+            }
+
+            if (self.enable_multiplayer != null) self.enable_multiplayer.Checked = false;
+            if (self.multiplayer_game_mode_select != null) self.multiplayer_game_mode_select.SelectedIndex = -1;
+            if (self.players_host_select != null) self.players_host_select.SelectedIndex = -1;
+
+            // Clear TextBoxes
+            self.hostname_ip_textbox.Clear();
+            self.port_textbox.Clear();
+            if (self.frag_limit != null) self.frag_limit.Clear();
+            if (self.time_limit != null) self.time_limit.Clear();
+            if (self.dmflags != null) self.dmflags.Clear();
+            if (self.dmflags2 != null) self.dmflags2.Clear();
         }
 
         public void Load_GameOptions(Launcher_Window self)
@@ -502,6 +571,9 @@ namespace Doom_Launcher_Project
 
                 if (Globals.Profiles.Configuration.TryGetValue(Globals.SelectedProfile, out var config))
                 {
+                    // Only clear the UI if we have successfully found a profile to load.
+                    // This prevents data loss if the selection change happens accidentally.
+                    Clear_GameOptionsUI(self);
 
                     if (!string.IsNullOrEmpty(config.Selected_WAD))
                     {
@@ -696,486 +768,142 @@ namespace Doom_Launcher_Project
 
         public void GenerateExecutable(Launcher_Window self)
         {
+            if (Globals.IsLoadingConfig) return;
+
             if (File.Exists(Globals.engine_config_path) && File.Exists(Globals.wad_config_path))
             {
-                //command line to launch the game
-                string arguments = string.Empty;
-
-                //game arguments
+                List<string> args = new List<string>();
                 string selected_engine = string.Empty;
-                string selected_wad = string.Empty;
-                string selected_map = string.Empty;
-                string selected_difficulty = string.Empty;
-                string selected_mod = string.Empty;
 
-                //multiplayers game arguments
+                // multiplayer variables
                 string selected_game_mode = string.Empty;
-                string selected_players = string.Empty;
-                string host = string.Empty;
-                string port = string.Empty;
                 string selected_frag_limit = string.Empty;
                 string selected_time_limit = string.Empty;
                 string selected_dmflags = string.Empty;
                 string selected_dmflags2 = string.Empty;
 
-                //reload the lists from the config files
-                string wad_json = File.ReadAllText(Globals.wad_config_path);
-                string engine_json = File.ReadAllText(Globals.engine_config_path);
+                // 1. Engine Selection
+                if (self.engine_selection?.SelectedIndex != -1)
+                {
+                    var engine = Globals.EnginesList.ElementAtOrDefault(self.engine_selection?.SelectedIndex ?? -1);
+                    if (engine != null) selected_engine = engine.Engine_Dir;
+                }
 
-                if (!string.IsNullOrWhiteSpace(wad_json) && !string.IsNullOrWhiteSpace(engine_json))
+                // 2. IWAD Selection
+                if (self.wad_selection?.SelectedItem != null && self.wad_selection.SelectedItem?.ToString() != "(None)")
                 {
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
+                    var wad = Globals.WADList.FirstOrDefault(w => w.WAD_Name == self.wad_selection?.SelectedItem?.ToString());
+                    if (wad != null) args.Add($"-iwad \"{wad.WAD_Dir}\"");
                 }
-                else
-                {
-                    return;
-                }
-                if (Globals.EnginesList == null || Globals.WADList == null) return;
-                //check if an engine, mods and a wads are selected
-                if (self.engine_selection?.SelectedItem != null)
-                {
-                    foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
-                    {
-                        //string selection = self.engine_selection.Items.IndexOf(self.engine_selection.SelectedItem).ToString();
-                        if (Globals.EnginesList.IndexOf(engine) == self.engine_selection.SelectedIndex)
-                        {
-                            selected_engine = engine.Engine_Dir;
-                            break;
-                        }
-                    }
-                }
-                else 
-                {
-                    selected_engine = "";
-                }
-                if (self.wad_selection?.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
-                {
-                    foreach (Globals.WADListStructure wad in Globals.WADList)
-                    {
-                        if (wad.WAD_Name == self.wad_selection.SelectedItem.ToString())
-                        {
-                            selected_wad = $"{" -iwad \"" + wad.WAD_Dir + "\""}";
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    selected_wad = "";
-                }
-                if (self.mods_selection?.SelectedItem != null)
+
+                // 3. Mods Selection
+                if (self.mods_selection?.CheckedItems.Count > 0)
                 {
                     string preselected_mod = string.Empty;
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
                     {
                         foreach (string selected_mod_item in self.mods_selection.CheckedItems)
                         {
-                            if (mod.Mod_Name == selected_mod_item?.ToString())
+                            if (mod.Mod_Name == selected_mod_item)
                             {
-                                preselected_mod = preselected_mod + "\"" + mod.Mod_Dir + "\" ";
+                                preselected_mod += $"\"{mod.Mod_Dir}\" ";
                                 break;
                             }
                         }
                     }
-                    selected_mod = $"{" -file " + preselected_mod}";
+                    if (!string.IsNullOrEmpty(preselected_mod)) args.Add($"-file {preselected_mod.Trim()}");
                 }
 
-                //dufficulty and map selection
+                // 4. Skill Level Selection
                 if (self.difficulty_selection?.SelectedItem != null)
                 {
-                    switch (self.difficulty_selection.SelectedItem.ToString())
+                    string diff = self.difficulty_selection?.SelectedItem?.ToString() ?? string.Empty;
+                    string skillArg = diff switch
                     {
-                        case "(Default)":
-                            selected_difficulty = "";
-                            break;
-                        case "Very Easy":
-                            selected_difficulty = " -skill 1";
-                            break;
-                        case "Easy":
-                            selected_difficulty = " -skill 2";
-                            break;
-                        case "Medium":
-                            selected_difficulty = " -skill 3";
-                            break;
-                        case "Hard":
-                            selected_difficulty = " -skill 4";
-                            break;
-                        case "Very Hard":
-                            selected_difficulty = " -skill 5";
-                            break;
-                        default:
-                            selected_difficulty = "";
-                            break;
-                    }
+                        "Very Easy" => "1",
+                        "Easy" => "2",
+                        "Medium" => "3",
+                        "Hard" => "4",
+                        "Very Hard" => "5",
+                        _ => ""
+                    };
+                    if (!string.IsNullOrEmpty(skillArg)) args.Add($"-skill {skillArg}");
                 }
+
+                // 5. Map Selection (Dynamic Warp)
                 if (self.map_selection?.SelectedItem != null)
                 {
-                    switch (self.map_selection.SelectedItem.ToString())
+                    string map = self.map_selection?.SelectedItem?.ToString() ?? string.Empty;
+                    if (map != "(Default)")
                     {
-                        case "(Default)":
-                            selected_map = "";
-                            break;
-                        case "E1M1":
-                            selected_map = " -warp 1 1";
-                            break;
-                        case "E1M2":
-                            selected_map = " -warp 1 2";
-                            break;
-                        case "E1M3":
-                            selected_map = " -warp 1 3";
-                            break;
-                        case "E1M4":
-                            selected_map = " -warp 1 4";
-                            break;
-                        case "E1M5":
-                            selected_map = " -warp 1 5";
-                            break;
-                        case "E1M6":
-                            selected_map = " -warp 1 6";
-                            break;
-                        case "E1M7":
-                            selected_map = " -warp 1 7";
-                            break;
-                        case "E1M8":
-                            selected_map = " -warp 1 8";
-                            break;
-                        case "E1M9":
-                            selected_map = " -warp 1 9";
-                            break;
-                        case "E2M1":
-                            selected_map = " -warp 2 1";
-                            break;
-                        case "E2M2":
-                            selected_map = " -warp 2 2";
-                            break;
-                        case "E2M3":
-                            selected_map = " -warp 2 3";
-                            break;
-                        case "E2M4":
-                            selected_map = " -warp 2 4";
-                            break;
-                        case "E2M5":
-                            selected_map = " -warp 2 5";
-                            break;
-                        case "E2M6":
-                            selected_map = " -warp 2 6";
-                            break;
-                        case "E2M7":
-                            selected_map = " -warp 2 7";
-                            break;
-                        case "E2M8":
-                            selected_map = " -warp 2 8";
-                            break;
-                        case "E2M9":
-                            selected_map = " -warp 2 9";
-                            break;
-                        case "E3M1":
-                            selected_map = " -warp 3 1";
-                            break;
-                        case "E3M2":
-                            selected_map = " -warp 3 2";
-                            break;
-                        case "E3M3":
-                            selected_map = " -warp 3 3";
-                            break;
-                        case "E3M4":
-                            selected_map = " -warp 3 4";
-                            break;
-                        case "E3M5":
-                            selected_map = " -warp 3 5";
-                            break;
-                        case "E3M6":
-                            selected_map = " -warp 3 6";
-                            break;
-                        case "E3M7":
-                            selected_map = " -warp 3 7";
-                            break;
-                        case "E3M8":
-                            selected_map = " -warp 3 8";
-                            break;
-                        case "E3M9":
-                            selected_map = " -warp 3 9";
-                            break;
-                        case "E4M1":
-                            selected_map = " -warp 4 1";
-                            break;
-                        case "E4M2":
-                            selected_map = " -warp 4 2";
-                            break;
-                        case "E4M3":
-                            selected_map = " -warp 4 3";
-                            break;
-                        case "E4M4":
-                            selected_map = " -warp 4 4";
-                            break;
-                        case "E4M5":
-                            selected_map = " -warp 4 5";
-                            break;
-                        case "E4M6":
-                            selected_map = " -warp 4 6";
-                            break;
-                        case "E4M7":
-                            selected_map = " -warp 4 7";
-                            break;
-                        case "E4M8":
-                            selected_map = " -warp 4 8";
-                            break;
-                        case "E4M9":
-                            selected_map = " -warp 4 9";
-                            break;
-                        case "MAP01":
-                            selected_map = " -warp 01";
-                            break;
-                        case "MAP02":
-                            selected_map = " -warp 02";
-                            break;
-                        case "MAP03":
-                            selected_map = " -warp 03";
-                            break;
-                        case "MAP04":
-                            selected_map = " -warp 04";
-                            break;
-                        case "MAP05":
-                            selected_map = " -warp 05";
-                            break;
-                        case "MAP06":
-                            selected_map = " -warp 06";
-                            break;
-                        case "MAP07":
-                            selected_map = " -warp 07";
-                            break;
-                        case "MAP08":
-                            selected_map = " -warp 08";
-                            break;
-                        case "MAP09":
-                            selected_map = " -warp 09";
-                            break;
-                        case "MAP10":
-                            selected_map = " -warp 10";
-                            break;
-                        case "MAP11":
-                            selected_map = " -warp 11";
-                            break;
-                        case "MAP12":
-                            selected_map = " -warp 12";
-                            break;
-                        case "MAP13":
-                            selected_map = " -warp 13";
-                            break;
-                        case "MAP14":
-                            selected_map = " -warp 14";
-                            break;
-                        case "MAP15":
-                            selected_map = " -warp 15";
-                            break;
-                        case "MAP16":
-                            selected_map = " -warp 16";
-                            break;
-                        case "MAP17":
-                            selected_map = " -warp 17";
-                            break;
-                        case "MAP18":
-                            selected_map = " -warp 18";
-                            break;
-                        case "MAP19":
-                            selected_map = " -warp 19";
-                            break;
-                        case "MAP20":
-                            selected_map = " -warp 20";
-                            break;
-                        case "MAP21":
-                            selected_map = " -warp 21";
-                            break;
-                        case "MAP22":
-                            selected_map = " -warp 22";
-                            break;
-                        case "MAP23":
-                            selected_map = " -warp 23";
-                            break;
-                        case "MAP24":
-                            selected_map = " -warp 24";
-                            break;
-                        case "MAP25":
-                            selected_map = " -warp 25";
-                            break;
-                        case "MAP26":
-                            selected_map = " -warp 26";
-                            break;
-                        case "MAP27":
-                            selected_map = " -warp 27";
-                            break;
-                        case "MAP28":
-                            selected_map = " -warp 28";
-                            break;
-                        case "MAP29":
-                            selected_map = " -warp 29";
-                            break;
-                        case "MAP30":
-                            selected_map = " -warp 30";
-                            break;
-                        case "MAP31":
-                            selected_map = " -warp 31";
-                            break;
-                        case "MAP32":
-                            selected_map = " -warp 32";
-                            break;
-                        case "MAP33":
-                            selected_map = " -warp 33";
-                            break;
-                        case "MAP34":
-                            selected_map = " -warp 34";
-                            break;
-                        case "MAP35":
-                            selected_map = " -warp 35";
-                            break;
-                        case "MAP36":
-                            selected_map = " -warp 36";
-                            break;
-                        case "MAP37":
-                            selected_map = " -warp 37";
-                            break;
-                        case "MAP38":
-                            selected_map = " -warp 38";
-                            break;
-                        case "MAP39":
-                            selected_map = " -warp 39";
-                            break;
-                        case "MAP40":
-                            selected_map = " -warp 40";
-                            break;
-                        default:
-                            self.map_selection.SelectedIndex = self.map_selection.Items.IndexOf("(Default)");
-                            break;
+                        // Logic for E1M1 style
+                        var matchE = Regex.Match(map ?? string.Empty, @"E(\d)M(\d)", RegexOptions.IgnoreCase);
+                        if (matchE.Success)
+                        {
+                            args.Add($"-warp {matchE.Groups[1].Value} {matchE.Groups[2].Value}");
+                        }
+                        else
+                        {
+                            // Logic for MAP01 style
+                            var matchM = Regex.Match(map ?? string.Empty, @"MAP(\d+)", RegexOptions.IgnoreCase);
+                            if (matchM.Success) args.Add($"-warp {matchM.Groups[1].Value}");
+                        }
                     }
                 }
-                
-                //online game options
+
+                // 6. Online game options
                 if (self.enable_multiplayer?.Checked == true)
                 {
-                    //select the game mode for a multiplayer game
+                    string host = self.hostname_ip_textbox?.Text ?? string.Empty;
+                    string port = self.port_textbox?.Text ?? string.Empty;
+
                     if (self.multiplayer_game_mode_select?.SelectedItem != null)
                     {
-                        switch (self.multiplayer_game_mode_select.SelectedItem.ToString()!)
+                        selected_game_mode = self.multiplayer_game_mode_select?.SelectedItem?.ToString() switch
                         {
-                            case "CO_OP":
-                                selected_game_mode = "";
-                                break;
-                            case "Deathmatch":
-                                selected_game_mode = " -deathmatch";
-                                break;
-                            case "Alt Deathmatch":
-                                selected_game_mode = " -altdeath";
-                                break;
-                            default:
-                                selected_game_mode = "";
-                                break;
-                        }
+                            "Deathmatch" => "-deathmatch",
+                            "Alt Deathmatch" => "-altdeath",
+                            _ => ""
+                        };
+                        if (!string.IsNullOrEmpty(selected_game_mode)) args.Add(selected_game_mode);
                     }
-                    if (self.hostname_ip_textbox?.Text != null && self.hostname_ip_textbox.Text != string.Empty)
+
+                    string playersStr = self.players_host_select?.SelectedItem?.ToString() ?? string.Empty;
+                    if (playersStr == "Join" && !string.IsNullOrWhiteSpace(host))
                     {
-                        host = self.hostname_ip_textbox.Text;
+                        // Join format: -join IP:Port
+                        args.Add($"-join {host}{(string.IsNullOrWhiteSpace(port) ? "" : ":" + port)}");
                     }
-                    //no need to return if port is not available (it's an optional feature)
-                    if (self.port_textbox?.Text != null && self.port_textbox.Text != string.Empty)
+                    else if (playersStr.StartsWith("Host "))
                     {
-                        port = self.port_textbox.Text;
-                    }
-                    //select whether to host or join a game
-                    if (self.players_host_select?.SelectedItem != null)
-                    {
-                        switch (self.players_host_select.SelectedItem.ToString()!)
+                        // Host format: -host <count> -port <port>
+                        string playerCount = playersStr.Replace("Host ", "").Trim();
+                        args.Add($"-host {playerCount}");
+                        
+                        if (!string.IsNullOrWhiteSpace(port))
                         {
-                            case "Join":
-                                if (port == null || port == string.Empty)
-                                {
-                                    selected_players = $"{" -join " + host}";
-                                }
-                                else if (port != null || port != string.Empty)
-                                {
-                                    selected_players = $"{" -join " + host + ":" + port}";
-                                }
-                                break;
-                            case "Host 1":
-                                selected_players = " -host 1";
-                                break;
-                            case "Host 2":
-                                selected_players = " -host 2";
-                                break;
-                            case "Host 3":
-                                selected_players = " -host 3";
-                                break;
-                            case "Host 4":
-                                selected_players = " -host 4";
-                                break;
-                            case "Host 5":
-                                selected_players = " -host 5";
-                                break;
-                            case "Host 6":
-                                selected_players = " -host 6";
-                                break;
-                            case "Host 7":
-                                selected_players = " -host 7";
-                                break;
-                            case "Host 8":
-                                selected_players = " -host 8";
-                                break;
-                            case "(More)":
-                                break;
-                            default:
-                                selected_players = "";
-                                break;
+                            args.Add($"-port {port}");
                         }
                     }
 
-                    //extra online game arguments
-                    if (self.frag_limit?.Text != null && self.frag_limit.Text != string.Empty)
-                    {
-                        selected_frag_limit = $"{" +set fraglimit " + self.frag_limit.Text}";
-                    }
-                    else 
-                    {
-                        selected_frag_limit = "";
-                    }
-                    if (self.time_limit?.Text != null && self.time_limit.Text != string.Empty)
-                    {
-                        selected_time_limit = $"{" +set timelimit " + self.time_limit.Text}";
-                    }
-                    else
-                    {
-                        selected_time_limit = "";
-                    }
-                    if (self.dmflags?.Text != null && self.dmflags.Text != string.Empty)
-                    {
-                        selected_dmflags = $"{" +set dmflags " + self.dmflags.Text}";
-                    }
-                    else 
-                    {
-                        selected_dmflags = "";
-                    }
-                    if (self.dmflags2?.Text != null && self.dmflags2.Text != string.Empty)
-                    {
-                        selected_dmflags2 = $"{" +set dmflags2 " + self.dmflags2.Text}";
-                    }
-                    else
-                    {
-                        selected_dmflags2 = "";
-                    }
+                    if (!string.IsNullOrEmpty(self.frag_limit?.Text)) args.Add($"+set fraglimit {self.frag_limit.Text}");
+                    if (!string.IsNullOrEmpty(self.time_limit?.Text)) args.Add($"+set timelimit {self.time_limit.Text}");
+                    if (!string.IsNullOrEmpty(self.dmflags?.Text)) args.Add($"+set dmflags {self.dmflags.Text}");
+                    if (!string.IsNullOrEmpty(self.dmflags2?.Text)) args.Add($"+set dmflags2 {self.dmflags2.Text}");
                 }
 
-                //build the play command
-                arguments = $"{selected_wad + selected_difficulty + selected_map + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit}";
-                self.command_line_view.Text = $"{selected_engine} {arguments}";
-                //load the command line to globals for launching the game
+                string arguments = string.Join(" ", args);
+                self.command_line_view.Text = $"\"{selected_engine}\" {arguments}";
+
                 Globals.game_launch_engine = selected_engine;
                 Globals.game_launch_arguments = arguments;
-                Globals.game_launch_command = $"{selected_engine} {arguments}";
+                Globals.game_launch_command = self.command_line_view.Text;
             }
         }
 
         public void PlayGame(Launcher_Window self)
         {
-            this.GenerateExecutable(self);
+            GenerateExecutable(self);
             try
             {
                 ProcessStartInfo game_info = new ProcessStartInfo
@@ -1183,7 +911,6 @@ namespace Doom_Launcher_Project
                     FileName = Globals.game_launch_engine,
                     Arguments = Globals.game_launch_arguments,
                     UseShellExecute = false,
-                    //CreateNoWindow = false
                 };
                 Process.Start(game_info);
             }
@@ -1239,7 +966,8 @@ namespace Doom_Launcher_Project
                     return;
                 }
                 Game_Options gameOpts = new Game_Options();
-                Globals.Profiles.Configuration[profileName] = gameOpts.GetConfigFromUI(self);
+                // Initialize a new empty configuration instead of pulling from the current UI
+                Globals.Profiles.Configuration[profileName] = new Globals.GameConfigStructure();
                 File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
                 Load_Profiles(self);
                 self.profile_select.SelectedItem = profileName;
