@@ -11,7 +11,7 @@
     <Deterministic>true</Deterministic>
     <ApplicationIcon>TDL.ico</ApplicationIcon>
     <StartupObject>Doom_Launcher_Project.Init</StartupObject>
-    <Version>0.1.0.5</Version>
+    <Version>1.0.7.4</Version>
     <FileVersion>1.0.7.4</FileVersion>
     <Company>Teronverse</Company>
     <Product>Teron's Doom Launcher (TDL)</Product>
