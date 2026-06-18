@@ -2,6 +2,18 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.3.0] - 2026-06-18
+
+### New Features
+
+- **Reworked Profiles tab** (#13) — the profile picker is now a list view instead of a dropdown, with a dedicated details pane next to it that previews the selected profile's saved settings (WAD, mods, skill, starting map, multiplayer options, and engine) read straight from `launcher_config.json`, so you can see what you're about to launch without switching to the Game Options tab. The Add/Remove/Edit buttons were repositioned above the list to make room.
+
+## [1.2.2] - 2026-06-18
+
+### Bug Fixes
+
+- Fixed the generated command line not refreshing immediately after switching profiles — it kept showing the previous profile's command until something else (e.g. changing a dropdown) triggered a regeneration.
+
 ## [1.2.1] - 2026-06-18
 
 ### Bug Fixes

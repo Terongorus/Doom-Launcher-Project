@@ -35,7 +35,6 @@
             remove_profile = new Button();
             add_profile = new Button();
             profile_select_label = new Label();
-            profile_select = new ComboBox();
             game_options_tab = new TabPage();
             game_options_container_outer = new TableLayoutPanel();
             game_options_container_inner_1 = new TableLayoutPanel();
@@ -85,6 +84,10 @@
             remove_mod_button = new Button();
             play_button = new Button();
             command_line_view = new RichTextBox();
+            tableLayoutPanel2 = new TableLayoutPanel();
+            profile_select = new ListBox();
+            profile_details_label = new Label();
+            profile_details_textbox = new RichTextBox();
             menu_control.SuspendLayout();
             profiles_tab.SuspendLayout();
             game_options_tab.SuspendLayout();
@@ -93,6 +96,7 @@
             game_options_container_inner_2.SuspendLayout();
             launcher_options_tab.SuspendLayout();
             launcher_options_container.SuspendLayout();
+            tableLayoutPanel2.SuspendLayout();
             SuspendLayout();
             // 
             // menu_control
@@ -111,11 +115,7 @@
             // 
             // profiles_tab
             // 
-            profiles_tab.Controls.Add(edit_profile);
-            profiles_tab.Controls.Add(remove_profile);
-            profiles_tab.Controls.Add(add_profile);
-            profiles_tab.Controls.Add(profile_select_label);
-            profiles_tab.Controls.Add(profile_select);
+            profiles_tab.Controls.Add(tableLayoutPanel2);
             profiles_tab.Location = new Point(4, 29);
             profiles_tab.Name = "profiles_tab";
             profiles_tab.Padding = new Padding(3);
@@ -127,51 +127,54 @@
             // edit_profile
             // 
             edit_profile.AutoSize = true;
-            edit_profile.Location = new Point(524, 251);
+            edit_profile.BackgroundImage = Properties.Resources._45706;
+            edit_profile.BackgroundImageLayout = ImageLayout.Zoom;
+            edit_profile.Dock = DockStyle.Fill;
+            edit_profile.Location = new Point(423, 2);
+            edit_profile.Margin = new Padding(2);
             edit_profile.Name = "edit_profile";
-            edit_profile.Size = new Size(80, 30);
+            edit_profile.Size = new Size(27, 27);
             edit_profile.TabIndex = 4;
-            edit_profile.Text = "&Edit";
             edit_profile.UseVisualStyleBackColor = true;
             // 
             // remove_profile
             // 
             remove_profile.AutoSize = true;
-            remove_profile.Location = new Point(438, 251);
+            remove_profile.BackgroundImage = Properties.Resources.Red_Minus_Symbol_PNG_Image;
+            remove_profile.BackgroundImageLayout = ImageLayout.Zoom;
+            remove_profile.Dock = DockStyle.Fill;
+            remove_profile.Location = new Point(454, 2);
+            remove_profile.Margin = new Padding(2);
             remove_profile.Name = "remove_profile";
-            remove_profile.Size = new Size(80, 30);
+            remove_profile.Size = new Size(27, 27);
             remove_profile.TabIndex = 3;
-            remove_profile.Text = "&Remove";
             remove_profile.UseVisualStyleBackColor = true;
             // 
             // add_profile
             // 
             add_profile.AutoSize = true;
-            add_profile.Location = new Point(352, 251);
+            add_profile.BackgroundImage = Properties.Resources.add_icon_2;
+            add_profile.BackgroundImageLayout = ImageLayout.Zoom;
+            add_profile.Dock = DockStyle.Fill;
+            add_profile.Location = new Point(485, 2);
+            add_profile.Margin = new Padding(2);
             add_profile.Name = "add_profile";
-            add_profile.Size = new Size(80, 30);
+            add_profile.Size = new Size(27, 27);
             add_profile.TabIndex = 2;
-            add_profile.Text = "&Add";
             add_profile.UseVisualStyleBackColor = true;
             // 
             // profile_select_label
             // 
             profile_select_label.AutoSize = true;
-            profile_select_label.Location = new Point(425, 194);
+            profile_select_label.Dock = DockStyle.Fill;
+            profile_select_label.Location = new Point(2, 2);
+            profile_select_label.Margin = new Padding(2);
             profile_select_label.Name = "profile_select_label";
-            profile_select_label.Size = new Size(106, 20);
+            profile_select_label.Size = new Size(417, 27);
             profile_select_label.TabIndex = 0;
             profile_select_label.Text = "Select Profile:";
+            profile_select_label.TextAlign = ContentAlignment.MiddleLeft;
             profile_select_label.Click += profile_select_label_Click;
-            // 
-            // profile_select
-            // 
-            profile_select.DropDownStyle = ComboBoxStyle.DropDownList;
-            profile_select.FormattingEnabled = true;
-            profile_select.Location = new Point(352, 217);
-            profile_select.Name = "profile_select";
-            profile_select.Size = new Size(252, 28);
-            profile_select.TabIndex = 1;
             // 
             // game_options_tab
             // 
@@ -249,28 +252,28 @@
             // dmflags2
             // 
             dmflags2.Dock = DockStyle.Fill;
-            dmflags2.Location = new Point(236, 395);
+            dmflags2.Location = new Point(236, 400);
             dmflags2.Margin = new Padding(4);
             dmflags2.Name = "dmflags2";
             dmflags2.Size = new Size(224, 26);
             dmflags2.TabIndex = 27;
             dmflags2.TextChanged += dmflags2_TextChanged;
-            //
+            // 
             // dmflags
-            //
+            // 
             dmflags.Dock = DockStyle.Fill;
-            dmflags.Location = new Point(4, 395);
+            dmflags.Location = new Point(4, 400);
             dmflags.Margin = new Padding(4);
             dmflags.Name = "dmflags";
             dmflags.Size = new Size(224, 26);
             dmflags.TabIndex = 26;
             dmflags.TextChanged += dmflags_TextChanged;
-            //
+            // 
             // dmflags_label
             // 
             dmflags_label.AutoSize = true;
             dmflags_label.Dock = DockStyle.Fill;
-            dmflags_label.Location = new Point(4, 369);
+            dmflags_label.Location = new Point(4, 374);
             dmflags_label.Margin = new Padding(4, 20, 4, 2);
             dmflags_label.Name = "dmflags_label";
             dmflags_label.Size = new Size(224, 20);
@@ -281,7 +284,7 @@
             // 
             dmflags2_label.AutoSize = true;
             dmflags2_label.Dock = DockStyle.Fill;
-            dmflags2_label.Location = new Point(236, 369);
+            dmflags2_label.Location = new Point(236, 374);
             dmflags2_label.Margin = new Padding(4, 20, 4, 2);
             dmflags2_label.Name = "dmflags2_label";
             dmflags2_label.Size = new Size(224, 20);
@@ -291,18 +294,18 @@
             // time_limit
             // 
             time_limit.Dock = DockStyle.Fill;
-            time_limit.Location = new Point(236, 319);
+            time_limit.Location = new Point(236, 324);
             time_limit.Margin = new Padding(4);
             time_limit.Name = "time_limit";
             time_limit.Size = new Size(224, 26);
             time_limit.TabIndex = 24;
             time_limit.TextChanged += time_limit_TextChanged;
-            //
+            // 
             // time_limit_label
             // 
             time_limit_label.AutoSize = true;
             time_limit_label.Dock = DockStyle.Fill;
-            time_limit_label.Location = new Point(236, 293);
+            time_limit_label.Location = new Point(236, 298);
             time_limit_label.Margin = new Padding(4, 20, 4, 2);
             time_limit_label.Name = "time_limit_label";
             time_limit_label.Size = new Size(224, 20);
@@ -312,18 +315,18 @@
             // frag_limit
             // 
             frag_limit.Dock = DockStyle.Fill;
-            frag_limit.Location = new Point(4, 319);
+            frag_limit.Location = new Point(4, 324);
             frag_limit.Margin = new Padding(4);
             frag_limit.Name = "frag_limit";
             frag_limit.Size = new Size(224, 26);
             frag_limit.TabIndex = 23;
             frag_limit.TextChanged += frag_limit_TextChanged;
-            //
+            // 
             // frag_limit_label
             // 
             frag_limit_label.AutoSize = true;
             frag_limit_label.Dock = DockStyle.Fill;
-            frag_limit_label.Location = new Point(4, 293);
+            frag_limit_label.Location = new Point(4, 298);
             frag_limit_label.Margin = new Padding(4, 20, 4, 2);
             frag_limit_label.Name = "frag_limit_label";
             frag_limit_label.Size = new Size(224, 20);
@@ -333,28 +336,28 @@
             // port_textbox
             // 
             port_textbox.Dock = DockStyle.Fill;
-            port_textbox.Location = new Point(236, 243);
+            port_textbox.Location = new Point(236, 248);
             port_textbox.Margin = new Padding(4);
             port_textbox.Name = "port_textbox";
             port_textbox.Size = new Size(224, 26);
             port_textbox.TabIndex = 18;
             port_textbox.TextChanged += port_textbox_TextChanged;
-            //
+            // 
             // hostname_ip_textbox
             // 
             hostname_ip_textbox.Dock = DockStyle.Fill;
-            hostname_ip_textbox.Location = new Point(4, 243);
+            hostname_ip_textbox.Location = new Point(4, 248);
             hostname_ip_textbox.Margin = new Padding(4);
             hostname_ip_textbox.Name = "hostname_ip_textbox";
             hostname_ip_textbox.Size = new Size(224, 26);
             hostname_ip_textbox.TabIndex = 17;
             hostname_ip_textbox.TextChanged += hostname_ip_textbox_TextChanged;
-            //
+            // 
             // hostname_ip_label
             // 
             hostname_ip_label.AutoSize = true;
             hostname_ip_label.Dock = DockStyle.Fill;
-            hostname_ip_label.Location = new Point(4, 217);
+            hostname_ip_label.Location = new Point(4, 222);
             hostname_ip_label.Margin = new Padding(4, 20, 4, 2);
             hostname_ip_label.Name = "hostname_ip_label";
             hostname_ip_label.Size = new Size(224, 20);
@@ -365,7 +368,7 @@
             // 
             port_label.AutoSize = true;
             port_label.Dock = DockStyle.Fill;
-            port_label.Location = new Point(236, 217);
+            port_label.Location = new Point(236, 222);
             port_label.Margin = new Padding(4, 20, 4, 2);
             port_label.Name = "port_label";
             port_label.Size = new Size(224, 20);
@@ -383,7 +386,7 @@
             players_host_select.Size = new Size(224, 28);
             players_host_select.TabIndex = 21;
             players_host_select.SelectedIndexChanged += players_host_select_SelectedIndexChanged;
-            //
+            // 
             // multiplayer_game_mode_select
             // 
             multiplayer_game_mode_select.Dock = DockStyle.Fill;
@@ -395,7 +398,7 @@
             multiplayer_game_mode_select.Size = new Size(224, 28);
             multiplayer_game_mode_select.TabIndex = 15;
             multiplayer_game_mode_select.SelectedIndexChanged += multiplayer_game_mode_select_SelectedIndexChanged;
-            //
+            // 
             // game_mode_label
             // 
             game_mode_label.AutoSize = true;
@@ -476,7 +479,7 @@
             difficulty_selection.Size = new Size(224, 28);
             difficulty_selection.TabIndex = 6;
             difficulty_selection.SelectedIndexChanged += difficulty_selection_SelectedIndexChanged;
-            //
+            // 
             // game_options_container_inner_2
             // 
             game_options_container_inner_2.AutoSize = true;
@@ -782,7 +785,7 @@
             add_mod_button.BackgroundImage = Properties.Resources.R;
             add_mod_button.BackgroundImageLayout = ImageLayout.Zoom;
             add_mod_button.Enabled = false;
-            add_mod_button.Location = new Point(550, 99);
+            add_mod_button.Location = new Point(976, 204);
             add_mod_button.Margin = new Padding(4, 0, 4, 0);
             add_mod_button.Name = "add_mod_button";
             add_mod_button.Size = new Size(23, 23);
@@ -797,7 +800,7 @@
             remove_mod_button.BackgroundImage = Properties.Resources.Red_Minus_Symbol_PNG_Image;
             remove_mod_button.BackgroundImageLayout = ImageLayout.Zoom;
             remove_mod_button.Enabled = false;
-            remove_mod_button.Location = new Point(520, 99);
+            remove_mod_button.Location = new Point(976, 227);
             remove_mod_button.Margin = new Padding(4, 0, 4, 0);
             remove_mod_button.Name = "remove_mod_button";
             remove_mod_button.Size = new Size(23, 23);
@@ -830,6 +833,64 @@
             command_line_view.TabIndex = 2;
             command_line_view.Text = "";
             // 
+            // tableLayoutPanel2
+            // 
+            tableLayoutPanel2.ColumnCount = 5;
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 49.0740738F));
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle());
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle());
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle());
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50.9259262F));
+            tableLayoutPanel2.Controls.Add(remove_profile, 2, 0);
+            tableLayoutPanel2.Controls.Add(profile_select, 0, 1);
+            tableLayoutPanel2.Controls.Add(add_profile, 3, 0);
+            tableLayoutPanel2.Controls.Add(edit_profile, 1, 0);
+            tableLayoutPanel2.Controls.Add(profile_details_label, 4, 0);
+            tableLayoutPanel2.Controls.Add(profile_select_label, 0, 0);
+            tableLayoutPanel2.Controls.Add(profile_details_textbox, 4, 1);
+            tableLayoutPanel2.Dock = DockStyle.Fill;
+            tableLayoutPanel2.Location = new Point(3, 3);
+            tableLayoutPanel2.Margin = new Padding(0);
+            tableLayoutPanel2.Name = "tableLayoutPanel2";
+            tableLayoutPanel2.RowCount = 2;
+            tableLayoutPanel2.RowStyles.Add(new RowStyle());
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel2.Size = new Size(951, 468);
+            tableLayoutPanel2.TabIndex = 5;
+            // 
+            // profile_select
+            // 
+            tableLayoutPanel2.SetColumnSpan(profile_select, 4);
+            profile_select.Dock = DockStyle.Fill;
+            profile_select.FormattingEnabled = true;
+            profile_select.Location = new Point(4, 35);
+            profile_select.Margin = new Padding(4);
+            profile_select.Name = "profile_select";
+            profile_select.Size = new Size(506, 429);
+            profile_select.TabIndex = 6;
+            // 
+            // profile_details_label
+            // 
+            profile_details_label.AutoSize = true;
+            profile_details_label.Dock = DockStyle.Fill;
+            profile_details_label.Location = new Point(516, 2);
+            profile_details_label.Margin = new Padding(2);
+            profile_details_label.Name = "profile_details_label";
+            profile_details_label.Size = new Size(433, 27);
+            profile_details_label.TabIndex = 7;
+            profile_details_label.Text = "Details:";
+            profile_details_label.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // profile_details_textbox
+            // 
+            profile_details_textbox.Dock = DockStyle.Fill;
+            profile_details_textbox.Location = new Point(517, 34);
+            profile_details_textbox.Name = "profile_details_textbox";
+            profile_details_textbox.ReadOnly = true;
+            profile_details_textbox.Size = new Size(431, 431);
+            profile_details_textbox.TabIndex = 8;
+            profile_details_textbox.Text = "";
+            // 
             // Launcher_Window
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -848,7 +909,6 @@
             Click += Launcher_Window_Click;
             menu_control.ResumeLayout(false);
             profiles_tab.ResumeLayout(false);
-            profiles_tab.PerformLayout();
             game_options_tab.ResumeLayout(false);
             game_options_container_outer.ResumeLayout(false);
             game_options_container_outer.PerformLayout();
@@ -859,6 +919,8 @@
             launcher_options_tab.ResumeLayout(false);
             launcher_options_container.ResumeLayout(false);
             launcher_options_container.PerformLayout();
+            tableLayoutPanel2.ResumeLayout(false);
+            tableLayoutPanel2.PerformLayout();
             ResumeLayout(false);
 
         }
@@ -911,7 +973,6 @@
         public System.Windows.Forms.TextBox dmflags2;
         public TabPage profiles_tab;
         public Label profile_select_label;
-        public ComboBox profile_select;
         public Button edit_profile;
         public Button remove_profile;
         public Button add_profile;
@@ -922,6 +983,10 @@
         public Label wads_info;
         public Label engines_info;
         private TableLayoutPanel game_options_container_outer;
+        private TableLayoutPanel tableLayoutPanel2;
+        public ListBox profile_select;
+        public Label profile_details_label;
+        public RichTextBox profile_details_textbox;
     }
 }
 

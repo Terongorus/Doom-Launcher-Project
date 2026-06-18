@@ -1360,6 +1360,103 @@ namespace Doom_Launcher_Project
             Globals.SelectedProfile = profileToSelect;
             self.profile_select.SelectedItem = profileToSelect;
 
+            UpdateProfileDetails(self);
+        }
+
+        // Renders a quick read-only preview of the selected profile's saved settings
+        // (from launcher_config.json) into profile_details_textbox, so the user can see
+        // what they're about to launch without switching to the Game Options tab.
+        public void UpdateProfileDetails(Launcher_Window self)
+        {
+            RichTextBox details = self.profile_details_textbox;
+            details.Clear();
+
+            if (self.profile_select.SelectedItem == null)
+                return;
+
+            string profileName = self.profile_select.SelectedItem.ToString() ?? string.Empty;
+            Globals.GameConfigStructure? profile = Globals.Config.Configuration.Profiles.Entries.FirstOrDefault(p => p.Name == profileName);
+            if (profile == null)
+                return;
+
+            AppendHeading(details, "Selected WAD:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_WAD) ? "(none)" : profile.Selected_WAD);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Selected Mods:");
+            string[] mods = profile.Selected_Mods.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            if (mods.Length == 0)
+                AppendValue(details, "(none)");
+            else
+                foreach (string mod in mods)
+                    AppendValue(details, mod);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Game difficulty:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_SkillLevel) ? "(Default)" : profile.Selected_SkillLevel);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Starting map:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Map) ? "(Default)" : profile.Selected_Map);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Multiplayer options:");
+            if (profile.Enable_Multiplayer)
+            {
+                AppendSubItem(details, "Online game mode:", string.IsNullOrEmpty(profile.Selected_Game_Mode) ? "(none)" : profile.Selected_Game_Mode);
+                AppendSubItem(details, "Players:", string.IsNullOrEmpty(profile.Selected_Players) ? "(none)" : profile.Selected_Players);
+                if (!string.IsNullOrEmpty(profile.Host))
+                    AppendSubItem(details, "Host:", profile.Host + (string.IsNullOrEmpty(profile.Port) ? string.Empty : ":" + profile.Port));
+                if (!string.IsNullOrEmpty(profile.Selected_FragLimit))
+                    AppendSubItem(details, "Frag limit:", profile.Selected_FragLimit);
+                if (!string.IsNullOrEmpty(profile.Selected_TimeLimit))
+                    AppendSubItem(details, "Time limit:", profile.Selected_TimeLimit);
+                if (!string.IsNullOrEmpty(profile.Selected_DMFlags))
+                    AppendSubItem(details, "DMFLAGS:", profile.Selected_DMFlags);
+                if (!string.IsNullOrEmpty(profile.Selected_DMFlags2))
+                    AppendSubItem(details, "DMFLAGS2:", profile.Selected_DMFlags2);
+            }
+            else
+            {
+                AppendValue(details, "Disabled (singleplayer)");
+            }
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Running using:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Engine) ? "(none)" : profile.Selected_Engine);
+        }
+
+        private static void AppendHeading(RichTextBox rtb, string text)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
+            rtb.AppendText(text + "\n");
+        }
+
+        private static void AppendValue(RichTextBox rtb, string text)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(text + "\n");
+        }
+
+        private static void AppendBlankLine(RichTextBox rtb)
+        {
+            rtb.AppendText("\n");
+        }
+
+        private static void AppendSubItem(RichTextBox rtb, string label, string value)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
+            rtb.AppendText("    " + label + " ");
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(value + "\n");
         }
 
         public void AddProfile(Launcher_Window self)
