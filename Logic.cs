@@ -221,6 +221,55 @@ namespace Doom_Launcher_Project
         }
     }
 
+    // Persists/restores the main window's position, size, and maximized state across runs.
+    public class Window_Options
+    {
+        public void LoadWindowSettings(Launcher_Window self)
+        {
+            ConfigStore.LoadAll();
+
+            Globals.WindowSettings window = Globals.Config.Configuration.Window;
+            if (window.Width <= 0 || window.Height <= 0)
+                return;
+
+            Rectangle savedBounds = new Rectangle(window.X, window.Y, window.Width, window.Height);
+            bool onScreen = false;
+            foreach (Screen screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(savedBounds))
+                {
+                    onScreen = true;
+                    break;
+                }
+            }
+            if (!onScreen)
+                return;
+
+            self.StartPosition = FormStartPosition.Manual;
+            self.Location = new Point(window.X, window.Y);
+            self.Size = new Size(window.Width, window.Height);
+            if (window.Maximized)
+                self.WindowState = FormWindowState.Maximized;
+        }
+
+        public void SaveWindowSettings(Launcher_Window self)
+        {
+            ConfigStore.LoadAll();
+
+            bool maximized = self.WindowState == FormWindowState.Maximized;
+            Rectangle bounds = self.WindowState == FormWindowState.Normal ? self.Bounds : self.RestoreBounds;
+
+            Globals.WindowSettings window = Globals.Config.Configuration.Window;
+            window.X = bounds.X;
+            window.Y = bounds.Y;
+            window.Width = bounds.Width;
+            window.Height = bounds.Height;
+            window.Maximized = maximized;
+
+            ConfigStore.SaveAll();
+        }
+    }
+
     public class WAD_Options
     {
         public void AddWADs(Launcher_Window self)

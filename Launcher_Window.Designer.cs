@@ -906,6 +906,7 @@
             Name = "Launcher_Window";
             Text = "Form1";
             FormClosed += Launcher_Window_FormClosed;
+            FormClosing += Launcher_Window_FormClosing;
             Click += Launcher_Window_Click;
             menu_control.ResumeLayout(false);
             profiles_tab.ResumeLayout(false);

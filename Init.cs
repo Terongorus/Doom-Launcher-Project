@@ -127,6 +127,16 @@ namespace Doom_Launcher_Project
             public List<GameConfigStructure> Entries { get; set; } = new();
         }
 
+        //creates a template of the saved main window position/size (0/0 = not saved yet, falls back to the designer default)
+        public class WindowSettings
+        {
+            public int X { get; set; }
+            public int Y { get; set; }
+            public int Width { get; set; }
+            public int Height { get; set; }
+            public bool Maximized { get; set; }
+        }
+
         public class ConfigurationRoot
         {
             public BindingList<EnginesListStructure> Engines { get; set; } = new();
@@ -134,6 +144,7 @@ namespace Doom_Launcher_Project
             public BindingList<ModsListStructure> Mods { get; set; } = new();
             public ProfilesContainer Profiles { get; set; } = new();
             public List<WadLevelsCacheEntry> WADLevelsCache { get; set; } = new();
+            public WindowSettings Window { get; set; } = new();
         }
 
         public class RootConfig

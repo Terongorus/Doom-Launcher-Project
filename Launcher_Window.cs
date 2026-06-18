@@ -6,6 +6,10 @@
         public Launcher_Window()
         {
             InitializeComponent();
+            //restores the saved window position/size before the form is first shown
+            Window_Options window_options = new Window_Options();
+            window_options.LoadWindowSettings(this);
+
             Game_Options product_details = new Game_Options();
             product_details.ProductDetails(this);
             //loads the WADs from the config files
@@ -115,6 +119,14 @@
         {
             Game_Options game_options = new Game_Options();
             game_options.Save_GameOptions(this);
+        }
+
+        private void Launcher_Window_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            // Capture bounds before the window actually closes/minimizes, since
+            // RestoreBounds/WindowState are no longer reliable once the handle is torn down.
+            Window_Options window_options = new Window_Options();
+            window_options.SaveWindowSettings(this);
         }
 
         private void Launcher_Window_Click(object sender, EventArgs e)

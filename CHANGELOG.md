@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.5.0] - 2026-06-18
+
+### New Features
+
+- **Window position/size memory** (#22) — the main window now remembers its position, size, and maximized state between sessions, instead of always reopening at the same default location and size. The saved bounds are validated against the currently connected monitors on startup, so the window falls back to the default position if the saved spot is no longer on screen (e.g. after disconnecting a monitor).
+
 ## [1.4.0] - 2026-06-18
 
 ### New Features
