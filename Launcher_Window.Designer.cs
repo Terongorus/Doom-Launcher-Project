@@ -157,7 +157,6 @@
             // 
             // remove_profile
             // 
-            remove_profile.AutoSize = true;
             remove_profile.BackgroundImage = Properties.Resources.Red_Minus_Symbol_PNG_Image;
             remove_profile.BackgroundImageLayout = ImageLayout.Zoom;
             remove_profile.Dock = DockStyle.Fill;
@@ -181,7 +180,6 @@
             // 
             // add_profile
             // 
-            add_profile.AutoSize = true;
             add_profile.BackgroundImage = Properties.Resources.add_icon_2;
             add_profile.BackgroundImageLayout = ImageLayout.Zoom;
             add_profile.Dock = DockStyle.Fill;
@@ -194,7 +192,6 @@
             // 
             // edit_profile
             // 
-            edit_profile.AutoSize = true;
             edit_profile.BackgroundImage = Properties.Resources._45706;
             edit_profile.BackgroundImageLayout = ImageLayout.Zoom;
             edit_profile.Dock = DockStyle.Fill;
@@ -322,7 +319,7 @@
             // dmflags2
             // 
             dmflags2.Dock = DockStyle.Fill;
-            dmflags2.Location = new Point(241, 400);
+            dmflags2.Location = new Point(241, 390);
             dmflags2.Margin = new Padding(4);
             dmflags2.Name = "dmflags2";
             dmflags2.Size = new Size(229, 26);
@@ -332,7 +329,7 @@
             // dmflags
             // 
             dmflags.Dock = DockStyle.Fill;
-            dmflags.Location = new Point(4, 400);
+            dmflags.Location = new Point(4, 390);
             dmflags.Margin = new Padding(4);
             dmflags.Name = "dmflags";
             dmflags.Size = new Size(229, 26);
@@ -343,7 +340,7 @@
             // 
             dmflags_label.AutoSize = true;
             dmflags_label.Dock = DockStyle.Fill;
-            dmflags_label.Location = new Point(4, 374);
+            dmflags_label.Location = new Point(4, 364);
             dmflags_label.Margin = new Padding(4, 20, 4, 2);
             dmflags_label.Name = "dmflags_label";
             dmflags_label.Size = new Size(229, 20);
@@ -354,7 +351,7 @@
             // 
             dmflags2_label.AutoSize = true;
             dmflags2_label.Dock = DockStyle.Fill;
-            dmflags2_label.Location = new Point(241, 374);
+            dmflags2_label.Location = new Point(241, 364);
             dmflags2_label.Margin = new Padding(4, 20, 4, 2);
             dmflags2_label.Name = "dmflags2_label";
             dmflags2_label.Size = new Size(229, 20);
@@ -364,7 +361,7 @@
             // time_limit
             // 
             time_limit.Dock = DockStyle.Fill;
-            time_limit.Location = new Point(241, 324);
+            time_limit.Location = new Point(241, 314);
             time_limit.Margin = new Padding(4);
             time_limit.Name = "time_limit";
             time_limit.Size = new Size(229, 26);
@@ -375,7 +372,7 @@
             // 
             time_limit_label.AutoSize = true;
             time_limit_label.Dock = DockStyle.Fill;
-            time_limit_label.Location = new Point(241, 298);
+            time_limit_label.Location = new Point(241, 288);
             time_limit_label.Margin = new Padding(4, 20, 4, 2);
             time_limit_label.Name = "time_limit_label";
             time_limit_label.Size = new Size(229, 20);
@@ -385,7 +382,7 @@
             // frag_limit
             // 
             frag_limit.Dock = DockStyle.Fill;
-            frag_limit.Location = new Point(4, 324);
+            frag_limit.Location = new Point(4, 314);
             frag_limit.Margin = new Padding(4);
             frag_limit.Name = "frag_limit";
             frag_limit.Size = new Size(229, 26);
@@ -396,7 +393,7 @@
             // 
             frag_limit_label.AutoSize = true;
             frag_limit_label.Dock = DockStyle.Fill;
-            frag_limit_label.Location = new Point(4, 298);
+            frag_limit_label.Location = new Point(4, 288);
             frag_limit_label.Margin = new Padding(4, 20, 4, 2);
             frag_limit_label.Name = "frag_limit_label";
             frag_limit_label.Size = new Size(229, 20);
@@ -406,7 +403,7 @@
             // port_textbox
             // 
             port_textbox.Dock = DockStyle.Fill;
-            port_textbox.Location = new Point(241, 248);
+            port_textbox.Location = new Point(241, 238);
             port_textbox.Margin = new Padding(4);
             port_textbox.Name = "port_textbox";
             port_textbox.Size = new Size(229, 26);
@@ -416,7 +413,7 @@
             // hostname_ip_textbox
             // 
             hostname_ip_textbox.Dock = DockStyle.Fill;
-            hostname_ip_textbox.Location = new Point(4, 248);
+            hostname_ip_textbox.Location = new Point(4, 238);
             hostname_ip_textbox.Margin = new Padding(4);
             hostname_ip_textbox.Name = "hostname_ip_textbox";
             hostname_ip_textbox.Size = new Size(229, 26);
@@ -427,7 +424,7 @@
             // 
             hostname_ip_label.AutoSize = true;
             hostname_ip_label.Dock = DockStyle.Fill;
-            hostname_ip_label.Location = new Point(4, 222);
+            hostname_ip_label.Location = new Point(4, 212);
             hostname_ip_label.Margin = new Padding(4, 20, 4, 2);
             hostname_ip_label.Name = "hostname_ip_label";
             hostname_ip_label.Size = new Size(229, 20);
@@ -438,7 +435,7 @@
             // 
             port_label.AutoSize = true;
             port_label.Dock = DockStyle.Fill;
-            port_label.Location = new Point(241, 222);
+            port_label.Location = new Point(241, 212);
             port_label.Margin = new Padding(4, 20, 4, 2);
             port_label.Name = "port_label";
             port_label.Size = new Size(229, 20);
@@ -450,7 +447,7 @@
             players_host_select.Dock = DockStyle.Fill;
             players_host_select.DropDownStyle = ComboBoxStyle.DropDownList;
             players_host_select.FormattingEnabled = true;
-            players_host_select.Location = new Point(241, 170);
+            players_host_select.Location = new Point(241, 165);
             players_host_select.Margin = new Padding(4);
             players_host_select.Name = "players_host_select";
             players_host_select.Size = new Size(229, 28);
@@ -462,7 +459,7 @@
             multiplayer_game_mode_select.Dock = DockStyle.Fill;
             multiplayer_game_mode_select.DropDownStyle = ComboBoxStyle.DropDownList;
             multiplayer_game_mode_select.FormattingEnabled = true;
-            multiplayer_game_mode_select.Location = new Point(4, 170);
+            multiplayer_game_mode_select.Location = new Point(4, 165);
             multiplayer_game_mode_select.Margin = new Padding(4);
             multiplayer_game_mode_select.Name = "multiplayer_game_mode_select";
             multiplayer_game_mode_select.Size = new Size(229, 28);
@@ -473,7 +470,7 @@
             // 
             game_mode_label.AutoSize = true;
             game_mode_label.Dock = DockStyle.Fill;
-            game_mode_label.Location = new Point(4, 144);
+            game_mode_label.Location = new Point(4, 139);
             game_mode_label.Margin = new Padding(4, 20, 4, 2);
             game_mode_label.Name = "game_mode_label";
             game_mode_label.Size = new Size(229, 20);
@@ -484,7 +481,7 @@
             // 
             players_host_label.AutoSize = true;
             players_host_label.Dock = DockStyle.Fill;
-            players_host_label.Location = new Point(241, 144);
+            players_host_label.Location = new Point(241, 139);
             players_host_label.Margin = new Padding(4, 20, 4, 2);
             players_host_label.Name = "players_host_label";
             players_host_label.Size = new Size(229, 20);
@@ -529,7 +526,7 @@
             // 
             enable_multiplayer.AutoSize = true;
             enable_multiplayer.Dock = DockStyle.Fill;
-            enable_multiplayer.Location = new Point(4, 98);
+            enable_multiplayer.Location = new Point(4, 93);
             enable_multiplayer.Margin = new Padding(4, 20, 4, 2);
             enable_multiplayer.Name = "enable_multiplayer";
             enable_multiplayer.Size = new Size(229, 24);
@@ -553,7 +550,7 @@
             // additional_parameters_label
             // 
             additional_parameters_label.AutoSize = true;
-            additional_parameters_label.Location = new Point(4, 450);
+            additional_parameters_label.Location = new Point(4, 440);
             additional_parameters_label.Margin = new Padding(4, 20, 4, 2);
             additional_parameters_label.Name = "additional_parameters_label";
             additional_parameters_label.Size = new Size(168, 20);
@@ -565,7 +562,7 @@
             // 
             game_options_container_inner_1.SetColumnSpan(additional_parameters_textbox, 2);
             additional_parameters_textbox.Dock = DockStyle.Fill;
-            additional_parameters_textbox.Location = new Point(4, 476);
+            additional_parameters_textbox.Location = new Point(4, 466);
             additional_parameters_textbox.Margin = new Padding(4);
             additional_parameters_textbox.Name = "additional_parameters_textbox";
             additional_parameters_textbox.Size = new Size(466, 26);
@@ -602,10 +599,10 @@
             mods_selection.Dock = DockStyle.Fill;
             mods_selection.FormattingEnabled = true;
             mods_selection.IntegralHeight = false;
-            mods_selection.Location = new Point(4, 124);
+            mods_selection.Location = new Point(4, 119);
             mods_selection.Margin = new Padding(4);
             mods_selection.Name = "mods_selection";
-            mods_selection.Size = new Size(229, 440);
+            mods_selection.Size = new Size(229, 445);
             mods_selection.TabIndex = 14;
             mods_selection.ItemCheck += mods_selection_ItemCheck;
             // 
@@ -614,10 +611,10 @@
             wad_selection.Dock = DockStyle.Fill;
             wad_selection.FormattingEnabled = true;
             wad_selection.IntegralHeight = false;
-            wad_selection.Location = new Point(241, 124);
+            wad_selection.Location = new Point(241, 119);
             wad_selection.Margin = new Padding(4);
             wad_selection.Name = "wad_selection";
-            wad_selection.Size = new Size(230, 440);
+            wad_selection.Size = new Size(230, 445);
             wad_selection.TabIndex = 2;
             wad_selection.SelectedIndexChanged += wad_selection_SelectedIndexChanged;
             // 
@@ -625,7 +622,7 @@
             // 
             mods_selection_label.AutoSize = true;
             mods_selection_label.Dock = DockStyle.Fill;
-            mods_selection_label.Location = new Point(4, 98);
+            mods_selection_label.Location = new Point(4, 93);
             mods_selection_label.Margin = new Padding(4, 20, 4, 2);
             mods_selection_label.Name = "mods_selection_label";
             mods_selection_label.Size = new Size(229, 20);
@@ -637,7 +634,7 @@
             // 
             wad_selection_label.AutoSize = true;
             wad_selection_label.Dock = DockStyle.Fill;
-            wad_selection_label.Location = new Point(241, 98);
+            wad_selection_label.Location = new Point(241, 93);
             wad_selection_label.Margin = new Padding(4, 20, 4, 2);
             wad_selection_label.Name = "wad_selection_label";
             wad_selection_label.Size = new Size(230, 20);
@@ -675,7 +672,7 @@
             launcher_options_tab.Margin = new Padding(4, 3, 4, 3);
             launcher_options_tab.Name = "launcher_options_tab";
             launcher_options_tab.Padding = new Padding(4, 3, 4, 3);
-            launcher_options_tab.Size = new Size(977, 498);
+            launcher_options_tab.Size = new Size(977, 574);
             launcher_options_tab.TabIndex = 1;
             launcher_options_tab.Text = "Launcher Options";
             launcher_options_tab.UseVisualStyleBackColor = true;
@@ -712,7 +709,7 @@
             launcher_options_container.RowStyles.Add(new RowStyle());
             launcher_options_container.RowStyles.Add(new RowStyle());
             launcher_options_container.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            launcher_options_container.Size = new Size(969, 492);
+            launcher_options_container.Size = new Size(969, 568);
             launcher_options_container.TabIndex = 3;
             // 
             // wads_info
@@ -854,7 +851,7 @@
             engines_list.Margin = new Padding(4);
             engines_list.Name = "engines_list";
             engines_list.SelectionMode = SelectionMode.MultiSimple;
-            engines_list.Size = new Size(477, 429);
+            engines_list.Size = new Size(477, 505);
             engines_list.TabIndex = 4;
             engines_list.SelectedIndexChanged += engines_list_SelectedIndexChanged;
             // 
@@ -869,7 +866,7 @@
             wads_list.Margin = new Padding(4);
             wads_list.Name = "wads_list";
             wads_list.SelectionMode = SelectionMode.MultiSimple;
-            wads_list.Size = new Size(476, 429);
+            wads_list.Size = new Size(476, 505);
             wads_list.TabIndex = 3;
             // 
             // add_mod_button
