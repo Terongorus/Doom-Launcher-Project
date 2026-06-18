@@ -904,6 +904,11 @@ namespace Doom_Launcher_Project
                             }
                         }
                     }
+                    else
+                    {
+                        self.wad_selection.SelectedIndex = self.wad_selection.Items.IndexOf("(None)");
+                        this.Load_MapsToList(self);
+                    }
 
                     if (!string.IsNullOrEmpty(config.Selected_Engine))
                     {
@@ -914,6 +919,10 @@ namespace Doom_Launcher_Project
                             if (index != -1)
                                 self.engine_selection.SelectedIndex = index;
                         }
+                    }
+                    else
+                    {
+                        self.engine_selection.SelectedIndex = -1;
                     }
 
                     for (int i = 0; i < self.mods_selection.Items.Count; i++)
@@ -937,11 +946,19 @@ namespace Doom_Launcher_Project
                         int index = self.multiplayer_game_mode_select.Items.IndexOf(config.Selected_Game_Mode);
                         if (index != -1) self.multiplayer_game_mode_select.SelectedIndex = index;
                     }
+                    else
+                    {
+                        self.multiplayer_game_mode_select.SelectedIndex = -1;
+                    }
 
                     if (!string.IsNullOrEmpty(config.Selected_Players))
                     {
                         int index = self.players_host_select.Items.IndexOf(config.Selected_Players);
                         if (index != -1) self.players_host_select.SelectedIndex = index;
+                    }
+                    else
+                    {
+                        self.players_host_select.SelectedIndex = -1;
                     }
 
                     self.hostname_ip_textbox.Text = config.Host;
@@ -955,6 +972,10 @@ namespace Doom_Launcher_Project
                     {
                         int index = self.difficulty_selection.Items.IndexOf(config.Selected_SkillLevel);
                         if (index != -1) self.difficulty_selection.SelectedIndex = index;
+                    }
+                    else
+                    {
+                        self.difficulty_selection.SelectedIndex = self.difficulty_selection.Items.IndexOf("(Default)");
                     }
 
                     if (self.wad_selection.SelectedItem != null && !string.IsNullOrEmpty(config.Selected_Map))
@@ -1470,9 +1491,9 @@ namespace Doom_Launcher_Project
                     MessageBox.Show("Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                Game_Options gameOpts = new Game_Options();
-                Globals.GameConfigStructure newProfile = gameOpts.GetConfigFromUI(self);
-                newProfile.Name = profileName;
+                // Start blank rather than snapshotting whatever is currently on the Game
+                // Options tab, so a new profile never silently inherits another profile's settings.
+                Globals.GameConfigStructure newProfile = new Globals.GameConfigStructure { Name = profileName };
                 entries.Add(newProfile);
                 ConfigStore.SaveAll();
                 Load_Profiles(self);

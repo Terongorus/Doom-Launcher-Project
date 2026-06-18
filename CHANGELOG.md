@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.3.2] - 2026-06-18
+
+### Bug Fixes
+
+- Fixed new profiles silently inheriting the previously active profile's settings (#18) — creating a profile now starts it fully blank (no WAD/engine/mods/skill/multiplayer options carried over), instead of snapshotting whatever the Game Options tab happened to be showing at the time. Also fixed `Load_GameOptions` leaving stale WAD/engine/game-mode/players/skill selections on screen when a profile's saved value for that field was blank, instead of resetting the control.
+
 ## [1.3.1] - 2026-06-18
 
 ### Bug Fixes
