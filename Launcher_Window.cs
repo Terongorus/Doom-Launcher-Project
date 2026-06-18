@@ -186,6 +186,7 @@
 
                 Game_Options game_options = new Game_Options();
                 game_options.Load_GameOptions(this);
+                SyncConfig();
             }
         }
 
