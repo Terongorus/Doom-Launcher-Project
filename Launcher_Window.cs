@@ -87,6 +87,9 @@
             Game_Options game_options = new Game_Options();
             game_options.Save_GameOptions(this);
             game_options.GenerateExecutable(this);
+
+            Profile_Options profile_options = new Profile_Options();
+            profile_options.UpdateProfileDetails(this);
         }
 
         private void engine_selection_SelectedIndexChanged(object sender, EventArgs e)
@@ -187,9 +190,6 @@
                 Game_Options game_options = new Game_Options();
                 game_options.Load_GameOptions(this);
                 SyncConfig();
-
-                Profile_Options profile_options = new Profile_Options();
-                profile_options.UpdateProfileDetails(this);
             }
         }
 

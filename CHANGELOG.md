@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.3.1] - 2026-06-18
+
+### Bug Fixes
+
+- Fixed the Profiles tab details preview not refreshing while editing the active profile's settings (#17) — it only picked up changes after deselecting/reselecting the profile or restarting the launcher. The preview now refreshes on every settings change, the same way the generated command line already did.
+
 ## [1.3.0] - 2026-06-18
 
 ### New Features
