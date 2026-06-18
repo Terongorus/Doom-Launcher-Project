@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace Doom_Launcher_Project
+﻿namespace Doom_Launcher_Project
 {
     public partial class Launcher_Window : Form
     {
@@ -82,11 +80,16 @@ namespace Doom_Launcher_Project
             engine_options.Edit_Engine(this);
         }
 
+        private void SyncConfig()
+        {
+            Game_Options game_options = new Game_Options();
+            game_options.Save_GameOptions(this);
+            game_options.GenerateExecutable(this);
+        }
+
         private void engine_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Game_Options game_Options = new Game_Options();
-            game_Options.Save_GameOptions(this);
-            game_Options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void play_button_Click(object sender, EventArgs e)
@@ -99,8 +102,7 @@ namespace Doom_Launcher_Project
         {
             Game_Options game_options = new Game_Options();
             game_options.Load_MapsToList(this);
-            game_options.Save_GameOptions(this);
-            game_options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void Launcher_Window_FormClosed(object sender, FormClosedEventArgs e)
@@ -111,9 +113,7 @@ namespace Doom_Launcher_Project
 
         private void Launcher_Window_Click(object sender, EventArgs e)
         {
-            Game_Options game_options = new Game_Options();
-            game_options.Save_GameOptions(this);
-            game_options.GenerateExecutable(this);
+            SyncConfig();
         }
 
         private void add_mod_button_Click(object sender, EventArgs e)
@@ -138,11 +138,17 @@ namespace Doom_Launcher_Project
         {
             Game_Options game_options = new Game_Options();
             game_options.OnlineModeEnable(this);
+            SyncConfig();
         }
 
-        private void mods_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private void mods_selection_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-
+            // ItemCheck fires before the checked state is committed, so defer
+            // the sync until after it lands; skip while a profile load is in progress.
+            if (!Globals.IsLoadingConfig && this.IsHandleCreated)
+            {
+                this.BeginInvoke(new Action(SyncConfig));
+            }
         }
 
         private void profile_select_label_Click(object sender, EventArgs e)
@@ -172,9 +178,9 @@ namespace Doom_Launcher_Project
             if (profile_select.SelectedItem != null)
             {
                 Globals.SelectedProfile = profile_select.SelectedItem!.ToString() ?? string.Empty;
-                // Update LastSelectedProfile in Globals.Profiles and save
-                Globals.Profiles.LastSelectedProfile = Globals.SelectedProfile;
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                // Update LastSelectedProfile in Globals.Config and save
+                Globals.Config.Configuration.Profiles.LastSelectedProfile = Globals.SelectedProfile;
+                ConfigStore.SaveAll();
 
                 Game_Options game_options = new Game_Options();
                 game_options.Load_GameOptions(this);
@@ -183,7 +189,7 @@ namespace Doom_Launcher_Project
 
         private void map_selection_SelectedIndexChanged(object sender, EventArgs e)
         {
-
+            SyncConfig();
         }
 
         private void mods_selection_label_Click(object sender, EventArgs e)
@@ -199,6 +205,51 @@ namespace Doom_Launcher_Project
         private void engine_selection_label_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void difficulty_selection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void multiplayer_game_mode_select_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void players_host_select_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void hostname_ip_textbox_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void port_textbox_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void frag_limit_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void time_limit_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void dmflags_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
+
+        private void dmflags2_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
         }
     }
 }

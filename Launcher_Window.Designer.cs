@@ -254,16 +254,18 @@
             dmflags2.Name = "dmflags2";
             dmflags2.Size = new Size(224, 26);
             dmflags2.TabIndex = 27;
-            // 
+            dmflags2.TextChanged += dmflags2_TextChanged;
+            //
             // dmflags
-            // 
+            //
             dmflags.Dock = DockStyle.Fill;
             dmflags.Location = new Point(4, 395);
             dmflags.Margin = new Padding(4);
             dmflags.Name = "dmflags";
             dmflags.Size = new Size(224, 26);
             dmflags.TabIndex = 26;
-            // 
+            dmflags.TextChanged += dmflags_TextChanged;
+            //
             // dmflags_label
             // 
             dmflags_label.AutoSize = true;
@@ -294,7 +296,8 @@
             time_limit.Name = "time_limit";
             time_limit.Size = new Size(224, 26);
             time_limit.TabIndex = 24;
-            // 
+            time_limit.TextChanged += time_limit_TextChanged;
+            //
             // time_limit_label
             // 
             time_limit_label.AutoSize = true;
@@ -314,7 +317,8 @@
             frag_limit.Name = "frag_limit";
             frag_limit.Size = new Size(224, 26);
             frag_limit.TabIndex = 23;
-            // 
+            frag_limit.TextChanged += frag_limit_TextChanged;
+            //
             // frag_limit_label
             // 
             frag_limit_label.AutoSize = true;
@@ -334,7 +338,8 @@
             port_textbox.Name = "port_textbox";
             port_textbox.Size = new Size(224, 26);
             port_textbox.TabIndex = 18;
-            // 
+            port_textbox.TextChanged += port_textbox_TextChanged;
+            //
             // hostname_ip_textbox
             // 
             hostname_ip_textbox.Dock = DockStyle.Fill;
@@ -343,7 +348,8 @@
             hostname_ip_textbox.Name = "hostname_ip_textbox";
             hostname_ip_textbox.Size = new Size(224, 26);
             hostname_ip_textbox.TabIndex = 17;
-            // 
+            hostname_ip_textbox.TextChanged += hostname_ip_textbox_TextChanged;
+            //
             // hostname_ip_label
             // 
             hostname_ip_label.AutoSize = true;
@@ -376,7 +382,8 @@
             players_host_select.Name = "players_host_select";
             players_host_select.Size = new Size(224, 28);
             players_host_select.TabIndex = 21;
-            // 
+            players_host_select.SelectedIndexChanged += players_host_select_SelectedIndexChanged;
+            //
             // multiplayer_game_mode_select
             // 
             multiplayer_game_mode_select.Dock = DockStyle.Fill;
@@ -387,7 +394,8 @@
             multiplayer_game_mode_select.Name = "multiplayer_game_mode_select";
             multiplayer_game_mode_select.Size = new Size(224, 28);
             multiplayer_game_mode_select.TabIndex = 15;
-            // 
+            multiplayer_game_mode_select.SelectedIndexChanged += multiplayer_game_mode_select_SelectedIndexChanged;
+            //
             // game_mode_label
             // 
             game_mode_label.AutoSize = true;
@@ -467,7 +475,8 @@
             difficulty_selection.Name = "difficulty_selection";
             difficulty_selection.Size = new Size(224, 28);
             difficulty_selection.TabIndex = 6;
-            // 
+            difficulty_selection.SelectedIndexChanged += difficulty_selection_SelectedIndexChanged;
+            //
             // game_options_container_inner_2
             // 
             game_options_container_inner_2.AutoSize = true;
@@ -503,7 +512,7 @@
             mods_selection.Name = "mods_selection";
             mods_selection.Size = new Size(224, 340);
             mods_selection.TabIndex = 14;
-            mods_selection.SelectedIndexChanged += mods_selection_SelectedIndexChanged;
+            mods_selection.ItemCheck += mods_selection_ItemCheck;
             // 
             // wad_selection
             // 

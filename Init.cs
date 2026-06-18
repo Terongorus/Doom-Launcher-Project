@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel; // <-- Add this using directive
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Forms;
 
@@ -14,12 +15,17 @@ namespace Doom_Launcher_Project
         public static string game_launch_arguments = string.Empty;
         public static string game_launch_command = string.Empty;
         public static string SelectedProfile = "Default";
-        public static RootConfig Profiles = new RootConfig();
-        public static string wad_config_path = "wad_config.json";
-        public static string engine_config_path = "engine_config.json";
-        public static string mods_config_path = "mods_config.json";
-        public static string game_config_path = "game_config.json";
-        public static string wad_levels_db_path = "wad_levels_database.json";
+        public static RootConfig Config = new RootConfig();
+        public static string launcher_config_path = "launcher_config.json";
+        public static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+        // Legacy per-feature files. Referenced only by ConfigStore.MigrateLegacyFiles,
+        // which folds them into launcher_config_path the first time it's missing.
+        public static string legacy_wad_config_path = "wad_config.json";
+        public static string legacy_engine_config_path = "engine_config.json";
+        public static string legacy_mods_config_path = "mods_config.json";
+        public static string legacy_game_config_path = "game_config.json";
+        public static string legacy_wad_levels_db_path = "wad_levels_database.json";
 
         //regular wad names container
         public static string[] match_1 =
@@ -58,6 +64,7 @@ namespace Doom_Launcher_Project
         //creates a template of the WAD list (the structure)
         public class WADListStructure
         {
+            public int Id { get; set; }
             public string WAD_Name { get; set; } = string.Empty;
             public string WAD_Dir { get; set; } = string.Empty;
         }
@@ -67,6 +74,7 @@ namespace Doom_Launcher_Project
         //creates a template of the Engines list (the structure)
         public class EnginesListStructure
         {
+            public int Id { get; set; }
             public string Engine_Nickname { get; set; } = string.Empty;
             public string Engine_Dir { get; set; } = string.Empty;
             public string Engine_Config { get; set; } = string.Empty;
@@ -77,15 +85,18 @@ namespace Doom_Launcher_Project
         //creates a template of the Mods list (the structure)
         public class ModsListStructure
         {
+            public int Id { get; set; }
             public string Mod_Name { get; set; } = string.Empty;
             public string Mod_Dir { get; set; } = string.Empty;
         }
         //creates the list that will contain the Mods
         public static BindingList<ModsListStructure> ModsList = new BindingList<ModsListStructure>();
 
-        //creates a template of the Game config (the structure)
+        //creates a template of the Game config (the structure) - also doubles as a profile entry
         public class GameConfigStructure
         {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
             public string Selected_Engine { get; set; } = string.Empty;
             public string Selected_WAD { get; set; } = string.Empty;
             public string Selected_Map { get; set; } = string.Empty;
@@ -102,14 +113,34 @@ namespace Doom_Launcher_Project
             public string Selected_DMFlags2 { get; set; } = string.Empty;
         }
 
+        //creates a template of a cached WAD level-lump scan result
+        public class WadLevelsCacheEntry
+        {
+            public int Id { get; set; }
+            public string WAD_Path { get; set; } = string.Empty;
+            public List<string> Levels { get; set; } = new();
+        }
+
+        public class ProfilesContainer
+        {
+            public string LastSelectedProfile { get; set; } = "Default";
+            public List<GameConfigStructure> Entries { get; set; } = new();
+        }
+
+        public class ConfigurationRoot
+        {
+            public BindingList<EnginesListStructure> Engines { get; set; } = new();
+            public BindingList<WADListStructure> WADs { get; set; } = new();
+            public BindingList<ModsListStructure> Mods { get; set; } = new();
+            public ProfilesContainer Profiles { get; set; } = new();
+            public List<WadLevelsCacheEntry> WADLevelsCache { get; set; } = new();
+        }
+
         public class RootConfig
         {
             [JsonPropertyName("CONFIGURATION")]
-            public Dictionary<string, GameConfigStructure> Configuration { get; set; } = new Dictionary<string, GameConfigStructure>();
-            public string LastSelectedProfile { get; set; } = "Default"; // New property to store the last selected profile
+            public ConfigurationRoot Configuration { get; set; } = new ConfigurationRoot();
         }
-        //creates the variable that will contain the Game config
-        public static BindingList<GameConfigStructure> GameConfig = new BindingList<GameConfigStructure>();
     }
 
     internal static class Init

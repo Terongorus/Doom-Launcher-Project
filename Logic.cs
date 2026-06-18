@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
 using Microsoft.VisualBasic.ApplicationServices;
@@ -70,22 +71,24 @@ namespace Doom_Launcher_Project
     }
 
     // Caches the level lumps found in each WAD so a given file only needs to be
-    // binary-scanned once.
+    // binary-scanned once. Backed by Globals.Config.Configuration.WADLevelsCache
+    // (part of the single combined config file) rather than its own file.
     public static class WadLevelDatabase
     {
         public static List<string> GetLevels(string wadPath)
         {
             string key = Path.GetFullPath(wadPath);
-            Dictionary<string, List<string>> database = Load();
+            List<Globals.WadLevelsCacheEntry> cache = Globals.Config.Configuration.WADLevelsCache;
 
-            if (database.TryGetValue(key, out List<string>? cachedLevels))
-                return cachedLevels;
+            Globals.WadLevelsCacheEntry? existing = cache.FirstOrDefault(e => string.Equals(e.WAD_Path, key, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+                return existing.Levels;
 
             List<string> levels = WadBinaryUtils.ScanLevelLumps(wadPath);
             levels.Sort((a, b) => GetSortKey(a).CompareTo(GetSortKey(b)));
 
-            database[key] = levels;
-            Save(database);
+            cache.Add(new Globals.WadLevelsCacheEntry { WAD_Path = key, Levels = levels });
+            ConfigStore.SaveAll();
             return levels;
         }
 
@@ -97,29 +100,124 @@ namespace Doom_Launcher_Project
                 return 1000 + int.Parse(name.Substring(3, 2));
             return int.MaxValue;
         }
+    }
 
-        private static Dictionary<string, List<string>> Load()
+    // Centralizes all reads/writes of the single combined launcher_config.json file
+    // that replaces the formerly separate engine/wad/mods/game/wad-levels files.
+    public static class ConfigStore
+    {
+        public static void LoadAll()
         {
-            if (File.Exists(Globals.wad_levels_db_path))
-            {
-                string json = File.ReadAllText(Globals.wad_levels_db_path);
-                if (!string.IsNullOrWhiteSpace(json))
-                {
-                    try
-                    {
-                        var loaded = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
-                        if (loaded != null)
-                            return new Dictionary<string, List<string>>(loaded, StringComparer.OrdinalIgnoreCase);
-                    }
-                    catch { /* fall through to a fresh database */ }
-                }
-            }
-            return new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            if (!File.Exists(Globals.launcher_config_path))
+                MigrateLegacyFiles();
+
+            string json = File.Exists(Globals.launcher_config_path) ? File.ReadAllText(Globals.launcher_config_path) : string.Empty;
+            Globals.Config = string.IsNullOrWhiteSpace(json)
+                ? new Globals.RootConfig()
+                : JsonSerializer.Deserialize<Globals.RootConfig>(json, Globals.JsonOptions) ?? new Globals.RootConfig();
+
+            Globals.EnginesList = Globals.Config.Configuration.Engines;
+            Globals.WADList = Globals.Config.Configuration.WADs;
+            Globals.ModsList = Globals.Config.Configuration.Mods;
         }
 
-        private static void Save(Dictionary<string, List<string>> database)
+        public static void SaveAll()
         {
-            File.WriteAllText(Globals.wad_levels_db_path, JsonSerializer.Serialize(database));
+            // Re-sync in case a caller replaced the list reference wholesale instead of mutating in place.
+            Globals.Config.Configuration.Engines = Globals.EnginesList;
+            Globals.Config.Configuration.WADs = Globals.WADList;
+            Globals.Config.Configuration.Mods = Globals.ModsList;
+
+            AssignSequentialIds(Globals.Config.Configuration.Engines, (e, id) => e.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.WADs, (w, id) => w.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.Mods, (m, id) => m.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.Profiles.Entries, (p, id) => p.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.WADLevelsCache, (c, id) => c.Id = id);
+
+            File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(Globals.Config, Globals.JsonOptions));
+        }
+
+        private static void AssignSequentialIds<T>(IList<T> entries, Action<T, int> setId)
+        {
+            for (int i = 0; i < entries.Count; i++)
+                setId(entries[i], i + 1);
+        }
+
+        // Runs at most once: imports the legacy per-feature files into the new combined
+        // file the first time launcher_config_path is missing. Old files are left on disk untouched.
+        private static void MigrateLegacyFiles()
+        {
+            Globals.RootConfig root = new Globals.RootConfig();
+
+            if (File.Exists(Globals.legacy_engine_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_engine_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.Engines = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_wad_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_wad_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.WADs = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_mods_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_mods_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.Mods = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_game_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_game_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    LegacyGameConfig? legacy = JsonSerializer.Deserialize<LegacyGameConfig>(json);
+                    if (legacy != null)
+                    {
+                        root.Configuration.Profiles.LastSelectedProfile = legacy.LastSelectedProfile;
+                        foreach (KeyValuePair<string, Globals.GameConfigStructure> kvp in legacy.Configuration)
+                        {
+                            kvp.Value.Name = kvp.Key;
+                            root.Configuration.Profiles.Entries.Add(kvp.Value);
+                        }
+                    }
+                }
+            }
+
+            if (File.Exists(Globals.legacy_wad_levels_db_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_wad_levels_db_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    Dictionary<string, List<string>>? legacyCache = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
+                    if (legacyCache != null)
+                    {
+                        foreach (KeyValuePair<string, List<string>> kvp in legacyCache)
+                            root.Configuration.WADLevelsCache.Add(new Globals.WadLevelsCacheEntry { WAD_Path = kvp.Key, Levels = kvp.Value });
+                    }
+                }
+            }
+
+            AssignSequentialIds(root.Configuration.Engines, (e, id) => e.Id = id);
+            AssignSequentialIds(root.Configuration.WADs, (w, id) => w.Id = id);
+            AssignSequentialIds(root.Configuration.Mods, (m, id) => m.Id = id);
+            AssignSequentialIds(root.Configuration.Profiles.Entries, (p, id) => p.Id = id);
+            AssignSequentialIds(root.Configuration.WADLevelsCache, (c, id) => c.Id = id);
+
+            File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(root, Globals.JsonOptions));
+        }
+
+        // Mirrors the legacy game_config.json shape (a dictionary keyed by profile name),
+        // used only to read that one file during migration.
+        private class LegacyGameConfig
+        {
+            [JsonPropertyName("CONFIGURATION")]
+            public Dictionary<string, Globals.GameConfigStructure> Configuration { get; set; } = new();
+            public string LastSelectedProfile { get; set; } = "Default";
         }
     }
 
@@ -127,22 +225,7 @@ namespace Doom_Launcher_Project
     {
         public void AddWADs(Launcher_Window self)
         {
-            // Bootstrap both backing config files so newly-detected IWADs and PWADs/mods
-            // each have somewhere to land, regardless of which one is missing.
-            if (!File.Exists(Globals.wad_config_path))
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(new BindingList<Globals.WADListStructure>()));
-            if (!File.Exists(Globals.mods_config_path))
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(new BindingList<Globals.ModsListStructure>()));
-
-            string wadJson = File.ReadAllText(Globals.wad_config_path);
-            Globals.WADList = string.IsNullOrWhiteSpace(wadJson)
-                ? new BindingList<Globals.WADListStructure>()
-                : JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wadJson) ?? new();
-
-            string modsJson = File.ReadAllText(Globals.mods_config_path);
-            Globals.ModsList = string.IsNullOrWhiteSpace(modsJson)
-                ? new BindingList<Globals.ModsListStructure>()
-                : JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(modsJson) ?? new();
+            ConfigStore.LoadAll();
 
             // Drop placeholder empty entries left over from earlier bootstrapping
             for (int i = Globals.WADList.Count - 1; i >= 0; i--)
@@ -204,10 +287,7 @@ namespace Doom_Launcher_Project
                 return;
             }
 
-            if (addedWads > 0)
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-            if (addedMods > 0)
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+            ConfigStore.SaveAll();
 
             MessageBox.Show($"{addedWads} WAD(s) and {addedMods} mod(s) added and configuration updated.", "Files Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -221,57 +301,32 @@ namespace Doom_Launcher_Project
 
         public void Load_WADs(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
+
+            self.wads_list?.Items.Clear();
+            foreach (Globals.WADListStructure wad_file in Globals.WADList)
             {
-                self.wads_list?.Items.Clear();
-                string json = File.ReadAllText(Globals.wad_config_path);
-                if (!string.IsNullOrWhiteSpace(json))
+                if (!string.IsNullOrEmpty(wad_file.WAD_Name) && !string.IsNullOrEmpty(wad_file.WAD_Dir))
                 {
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                    foreach (Globals.WADListStructure wad_file in Globals.WADList)
-                    {
-                        if (!string.IsNullOrEmpty(wad_file.WAD_Name) && !string.IsNullOrEmpty(wad_file.WAD_Dir))
-                        {
-                            self.wads_list?.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
-                        }
-                        else
-                        {
-                            MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check wad_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            break;
-                        }
-                    }
-
-                    // wads_list lists every game file added via AddWADs (IWADs and mods alike);
-                    // wad_selection/mods_selection are the ones that sort IWADs from mods.
-                    if (File.Exists(Globals.mods_config_path))
-                    {
-                        string modsJson = File.ReadAllText(Globals.mods_config_path);
-                        if (!string.IsNullOrWhiteSpace(modsJson))
-                            Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(modsJson) ?? new();
-                    }
-                    foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
-                    {
-                        if (!string.IsNullOrEmpty(mod_file.Mod_Name) && !string.IsNullOrEmpty(mod_file.Mod_Dir))
-                            self.wads_list?.Items.Add(mod_file.Mod_Name + " [" + mod_file.Mod_Dir + "]");
-                    }
-
-                    Game_Options game_options = new Game_Options();
-                    game_options.Load_WADsToList(self);
+                    self.wads_list?.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
                 }
                 else
                 {
-                    return;
+                    MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
                 }
             }
-            else
+
+            // wads_list lists every game file added via AddWADs (IWADs and mods alike);
+            // wad_selection/mods_selection are the ones that sort IWADs from mods.
+            foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
             {
-                //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Globals.WADList = new BindingList<Globals.WADListStructure>
-                {
-                    new Globals.WADListStructure {WAD_Name = "", WAD_Dir = ""}
-                };
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
+                if (!string.IsNullOrEmpty(mod_file.Mod_Name) && !string.IsNullOrEmpty(mod_file.Mod_Dir))
+                    self.wads_list?.Items.Add(mod_file.Mod_Name + " [" + mod_file.Mod_Dir + "]");
             }
+
+            Game_Options game_options = new Game_Options();
+            game_options.Load_WADsToList(self);
         }
 
         public void Remove_WAD(Launcher_Window self)
@@ -302,10 +357,8 @@ namespace Doom_Launcher_Project
                 }
             }
 
-            if (removedWad)
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-            if (removedMod)
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+            if (removedWad || removedMod)
+                ConfigStore.SaveAll();
 
             this.Load_WADs(self);
             if (removedMod)
@@ -377,7 +430,7 @@ namespace Doom_Launcher_Project
             {
                 wad.WAD_Name = nameBox.Text.Trim();
                 wad.WAD_Dir = dirBox.Text.Trim();
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
+                ConfigStore.SaveAll();
 
                 this.Load_WADs(self);
                 Game_Options game_options = new Game_Options();
@@ -424,7 +477,7 @@ namespace Doom_Launcher_Project
             {
                 mod.Mod_Name = nameBox.Text.Trim();
                 mod.Mod_Dir = dirBox.Text.Trim();
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+                ConfigStore.SaveAll();
 
                 this.Load_WADs(self);
                 Mods_Options mods_options = new Mods_Options();
@@ -465,117 +518,85 @@ namespace Doom_Launcher_Project
 
         public void AddEngines(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
-            { 
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.engine_config_path)))
-                {
-                    Globals.EnginesList?.Clear();
-                }
-                else 
-                {
-                    string json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
-                }
+            ConfigStore.LoadAll();
 
-                //opens a file dialog to select engine files
-                OpenFileDialog EngineFileDialog = new OpenFileDialog
+            //opens a file dialog to select engine files
+            OpenFileDialog EngineFileDialog = new OpenFileDialog
+            {
+                Title = "Select Engine Files",
+                Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+            if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
+            {
+                foreach (string file in EngineFileDialog.FileNames)
                 {
-                    Title = "Select Engine Files",
-                    Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
-                {
-                    foreach (string file in EngineFileDialog.FileNames)
+                    if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue; // Skip adding this duplicate engine
-                        }
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.EnginesList.RemoveAt(0);
-                        }
-                        Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
-                        {
-                            Engine_Nickname = BuildDefaultNickname(file),
-                            Engine_Dir = file
-                        };
-                        Globals.EnginesList.Add(engine_entry);
+                        continue; // Skip adding this duplicate engine
                     }
-                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize((Globals.EnginesList)));
-                    MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.Load_Engines(self);
+                    if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Globals.EnginesList.RemoveAt(0);
+                    }
+                    Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
+                    {
+                        Engine_Nickname = BuildDefaultNickname(file),
+                        Engine_Dir = file
+                    };
+                    Globals.EnginesList.Add(engine_entry);
                 }
-                else
-                {
-                    MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
+                ConfigStore.SaveAll();
+                MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.Load_Engines(self);
             }
             else
             {
-                Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
-                {
-                    new Globals.EnginesListStructure {Engine_Nickname = "", Engine_Dir = ""}
-                };
-                File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add engine files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
         }
 
         public void Load_Engines(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
-            {
-                self.engines_list?.Items.Clear();
-                string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
+            ConfigStore.LoadAll();
 
-                // Repair legacy entries whose nickname is actually a directory path (a past bug),
-                // regenerating it from the executable's file version metadata instead.
-                bool repairedNicknames = false;
-                foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
-                {
-                    if (!string.IsNullOrEmpty(engine_file.Engine_Dir) &&
-                        (string.IsNullOrEmpty(engine_file.Engine_Nickname) ||
-                         engine_file.Engine_Nickname.Contains(Path.DirectorySeparatorChar) ||
-                         engine_file.Engine_Nickname.Contains(Path.AltDirectorySeparatorChar)))
-                    {
-                        engine_file.Engine_Nickname = BuildDefaultNickname(engine_file.Engine_Dir);
-                        repairedNicknames = true;
-                    }
-                }
-                if (repairedNicknames)
-                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
+            self.engines_list?.Items.Clear();
 
-                foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
-                {
-                    if (!string.IsNullOrEmpty(engine_file.Engine_Nickname) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
-                    {
-                        string display = engine_file.Engine_Nickname + " [" + engine_file.Engine_Dir + "]";
-                        if (!string.IsNullOrEmpty(engine_file.Engine_Config))
-                            display += " (cfg: " + Path.GetFileName(engine_file.Engine_Config) + ")";
-                        self.engines_list?.Items.Add(display);
-                    }
-                    else
-                    {
-                        MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        break;
-                    }
-                }
-                Game_Options game_options = new Game_Options();
-                game_options.Load_EnginesToList(self);
-            }
-            else
+            // Repair legacy entries whose nickname is actually a directory path (a past bug),
+            // regenerating it from the executable's file version metadata instead.
+            bool repairedNicknames = false;
+            foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
             {
-                //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
+                if (!string.IsNullOrEmpty(engine_file.Engine_Dir) &&
+                    (string.IsNullOrEmpty(engine_file.Engine_Nickname) ||
+                     engine_file.Engine_Nickname.Contains(Path.DirectorySeparatorChar) ||
+                     engine_file.Engine_Nickname.Contains(Path.AltDirectorySeparatorChar)))
                 {
-                    new Globals.EnginesListStructure {Engine_Nickname = "", Engine_Dir = ""}
-                };
-                File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
+                    engine_file.Engine_Nickname = BuildDefaultNickname(engine_file.Engine_Dir);
+                    repairedNicknames = true;
+                }
             }
+            if (repairedNicknames)
+                ConfigStore.SaveAll();
+
+            foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
+            {
+                if (!string.IsNullOrEmpty(engine_file.Engine_Nickname) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
+                {
+                    string display = engine_file.Engine_Nickname + " [" + engine_file.Engine_Dir + "]";
+                    if (!string.IsNullOrEmpty(engine_file.Engine_Config))
+                        display += " (cfg: " + Path.GetFileName(engine_file.Engine_Config) + ")";
+                    self.engines_list?.Items.Add(display);
+                }
+                else
+                {
+                    MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
+                }
+            }
+            Game_Options game_options = new Game_Options();
+            game_options.Load_EnginesToList(self);
         }
 
         public void Remove_Engine(Launcher_Window self)
@@ -587,8 +608,8 @@ namespace Doom_Launcher_Project
                     int selectedIndex = self.engines_list.SelectedIndex;
                     self.engines_list?.Items.RemoveAt(selectedIndex);
                     Globals.EnginesList.RemoveAt(selectedIndex);
-                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize((Globals.EnginesList)));
                 }
+                ConfigStore.SaveAll();
                 Game_Options game_options = new Game_Options();
                 game_options.Load_EnginesToList(self);
 
@@ -677,7 +698,7 @@ namespace Doom_Launcher_Project
                 engine.Engine_Nickname = nicknameBox.Text.Trim();
                 engine.Engine_Dir = dirBox.Text.Trim();
                 engine.Engine_Config = configBox.Text.Trim();
-                File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
+                ConfigStore.SaveAll();
                 this.Load_Engines(self);
             }
         }
@@ -687,85 +708,56 @@ namespace Doom_Launcher_Project
     {
         public void AddMods(Launcher_Window self)
         {
-            if (File.Exists(Globals.mods_config_path))
-            {
-                string temp_name = string.Empty;
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.mods_config_path)))
-                {
-                    Globals.ModsList?.Clear();
-                }
-                else
-                {
-                    string mods_json = File.ReadAllText(Globals.mods_config_path);
-                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
-                }
+            ConfigStore.LoadAll();
 
-                //opens a file dialog to select mod files
-                OpenFileDialog ModFileDialog = new OpenFileDialog
+            //opens a file dialog to select mod files
+            OpenFileDialog ModFileDialog = new OpenFileDialog
+            {
+                Title = "Select Mod Files",
+                Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+            if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
+            {
+                foreach (string file in ModFileDialog.FileNames)
                 {
-                    Title = "Select Mod Files",
-                    Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
-                {
-                    foreach (string file in ModFileDialog.FileNames)
+                    if (Globals.ModsList.Any(m => m.Mod_Dir != null && m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (Globals.ModsList.Any(m => m.Mod_Dir != null && m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue;
-                        }
-                        if (Globals.ModsList.Any(m => m.Mod_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.ModsList.Any(m => m.Mod_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.ModsList.RemoveAt(0);
-                        }
-                        Globals.ModsListStructure mod_entry = new Globals.ModsListStructure
-                        {
-                            Mod_Name = Path.GetFileNameWithoutExtension(file),
-                            Mod_Dir = file
-                        };
-                        Globals.ModsList.Add(mod_entry);
-                        File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize((Globals.ModsList)));
-                        this.Load_Mods(self);
-                        MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        continue;
                     }
-                }
-                else
-                {
-                    MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    if (Globals.ModsList.Any(m => m.Mod_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.ModsList.Any(m => m.Mod_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Globals.ModsList.RemoveAt(0);
+                    }
+                    Globals.ModsListStructure mod_entry = new Globals.ModsListStructure
+                    {
+                        Mod_Name = Path.GetFileNameWithoutExtension(file),
+                        Mod_Dir = file
+                    };
+                    Globals.ModsList.Add(mod_entry);
+                    ConfigStore.SaveAll();
+                    this.Load_Mods(self);
+                    MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             else
             {
-                Globals.ModsList = new BindingList<Globals.ModsListStructure>
-                {
-                    new Globals.ModsListStructure {Mod_Name = "", Mod_Dir = ""}
-                };
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add mod files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
         }
         public void Load_Mods(Launcher_Window self)
         {
-            if (File.Exists(Globals.mods_config_path))
+            ConfigStore.LoadAll();
+
+            self.mods_selection?.Items.Clear();
+            foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
             {
-                self.mods_selection?.Items.Clear();
-                string json = File.ReadAllText(Globals.mods_config_path);
-                Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json) ?? new();
-                foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
+                if (!string.IsNullOrEmpty(mod_file.Mod_Name))
                 {
-                    if (!string.IsNullOrEmpty(mod_file.Mod_Name))
-                    {
-                        self.mods_selection?.Items.Add(mod_file.Mod_Name!);
-                    }
-                    // If Mod_Name is empty, just skip it. No need for a MessageBox.
+                    self.mods_selection?.Items.Add(mod_file.Mod_Name!);
                 }
-            }
-            else
-            {
-                Globals.ModsList = new BindingList<Globals.ModsListStructure>(); // Initialize as empty list
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList)); // Write empty list to file
+                // If Mod_Name is empty, just skip it. No need for a MessageBox.
             }
         }
 
@@ -778,8 +770,8 @@ namespace Doom_Launcher_Project
                     int selectedIndex = self.mods_selection.SelectedIndex;
                     self.mods_selection?.Items.RemoveAt(selectedIndex);
                     Globals.ModsList.RemoveAt(selectedIndex);
-                    File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize((Globals.ModsList)));
                 }
+                ConfigStore.SaveAll();
                 MessageBox.Show("Selected mod/mods removed and configuration updated.", "Mod/mods Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
@@ -870,21 +862,22 @@ namespace Doom_Launcher_Project
             if (Globals.IsLoadingConfig)
                 return;
 
-            if (File.Exists(Globals.game_config_path))
-            {
-                Globals.Profiles.Configuration[Globals.SelectedProfile] = GetConfigFromUI(self);
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
-            }
+            List<Globals.GameConfigStructure> entries = Globals.Config.Configuration.Profiles.Entries;
+            Globals.GameConfigStructure? existing = entries.FirstOrDefault(p => p.Name == Globals.SelectedProfile);
+            Globals.GameConfigStructure updated = GetConfigFromUI(self);
+            updated.Name = Globals.SelectedProfile;
+
+            if (existing != null)
+                entries[entries.IndexOf(existing)] = updated;
             else
-            {
-                File.WriteAllText(Globals.game_config_path, string.Empty);
-                MessageBox.Show("No configuration file found. A new one has been created. Please save game options again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+                entries.Add(updated);
+
+            ConfigStore.SaveAll();
         }
 
         public void Load_GameOptions(Launcher_Window self)
         {
-            if (!File.Exists(Globals.game_config_path) || self.wad_selection.Items == null || self.engine_selection.Items == null)
+            if (self.wad_selection.Items == null || self.engine_selection.Items == null)
                 return;
 
             // Start the loading guard
@@ -892,29 +885,10 @@ namespace Doom_Launcher_Project
 
             try
             {
-                string game_json = File.ReadAllText(Globals.game_config_path);
-                if (string.IsNullOrEmpty(game_json)) return;
+                ConfigStore.LoadAll();
 
-                try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(game_json) ?? new Globals.RootConfig(); }
-                catch { Globals.Profiles = new Globals.RootConfig(); }
-
-                if (File.Exists(Globals.wad_config_path))
-                {
-                    string wad_json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
-                }
-                if (File.Exists(Globals.engine_config_path))
-                {
-                    string engine_json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
-                }
-                if (File.Exists(Globals.mods_config_path))
-                {
-                    string mods_json = File.ReadAllText(Globals.mods_config_path);
-                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
-                }
-
-                if (Globals.Profiles.Configuration.TryGetValue(Globals.SelectedProfile, out var config))
+                Globals.GameConfigStructure? config = Globals.Config.Configuration.Profiles.Entries.FirstOrDefault(p => p.Name == Globals.SelectedProfile);
+                if (config != null)
                 {
 
                     if (!string.IsNullOrEmpty(config.Selected_WAD))
@@ -999,34 +973,28 @@ namespace Doom_Launcher_Project
 
         public void Load_WADsToList(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
+
+            self.wad_selection.Items.Clear();
+            string temp_name = string.Empty;
+            self.wad_selection.Items.Add("(None)");
+            foreach (Globals.WADListStructure wad in Globals.WADList)
             {
-                self.wad_selection.Items.Clear();
-                string temp_name = string.Empty;
-                string json = File.ReadAllText(Globals.wad_config_path);
-                Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                self.wad_selection.Items.Add("(None)");
-                foreach (Globals.WADListStructure wad in Globals.WADList)
-                {
-                    temp_name = wad.WAD_Name ?? string.Empty;
-                    self.wad_selection.Items.Add(temp_name);
-                }
+                temp_name = wad.WAD_Name ?? string.Empty;
+                self.wad_selection.Items.Add(temp_name);
             }
         }
 
         public void Load_EnginesToList(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
+            ConfigStore.LoadAll();
+
+            self.engine_selection.Items.Clear();
+            string temp_name = string.Empty;
+            foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
             {
-                self.engine_selection.Items.Clear();
-                string temp_name = string.Empty;
-                string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
-                foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
-                {
-                    temp_name = engine.Engine_Nickname ?? string.Empty;
-                    self.engine_selection.Items.Add(temp_name);
-                }
+                temp_name = engine.Engine_Nickname ?? string.Empty;
+                self.engine_selection.Items.Add(temp_name);
             }
         }
 
@@ -1099,7 +1067,7 @@ namespace Doom_Launcher_Project
 
         public void GenerateExecutable(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path) && File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
             {
                 //command line to launch the game
                 string arguments = string.Empty;
@@ -1122,20 +1090,6 @@ namespace Doom_Launcher_Project
                 string selected_dmflags = string.Empty;
                 string selected_dmflags2 = string.Empty;
 
-                //reload the lists from the config files
-                string wad_json = File.ReadAllText(Globals.wad_config_path);
-                string engine_json = File.ReadAllText(Globals.engine_config_path);
-
-                if (!string.IsNullOrWhiteSpace(wad_json) && !string.IsNullOrWhiteSpace(engine_json))
-                {
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
-                }
-                else
-                {
-                    return;
-                }
-                if (Globals.EnginesList == null || Globals.WADList == null) return;
                 //check if an engine, mods and a wads are selected
                 if (self.engine_selection?.SelectedItem != null)
                 {
@@ -1386,25 +1340,18 @@ namespace Doom_Launcher_Project
     {
         public void Load_Profiles(Launcher_Window self)
         {
-            if (File.Exists(Globals.game_config_path))
-            {
-                string json = File.ReadAllText(Globals.game_config_path);
-                if (!string.IsNullOrEmpty(json))
-                {
-                    try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(json) ?? new Globals.RootConfig(); }
-                    catch { Globals.Profiles = new Globals.RootConfig(); }
-                }
-            }
+            ConfigStore.LoadAll();
 
-            if (Globals.Profiles.Configuration.Count == 0)
-                Globals.Profiles.Configuration["Default"] = new Globals.GameConfigStructure();
+            Globals.ProfilesContainer profiles = Globals.Config.Configuration.Profiles;
+            if (profiles.Entries.Count == 0)
+                profiles.Entries.Add(new Globals.GameConfigStructure { Name = "Default" });
 
             self.profile_select.Items.Clear();
-            foreach (var profile in Globals.Profiles.Configuration.Keys)
-                self.profile_select.Items.Add(profile);
+            foreach (Globals.GameConfigStructure profile in profiles.Entries)
+                self.profile_select.Items.Add(profile.Name);
 
             // Set the selected profile based on LastSelectedProfile from config, or default to "Default"
-            string profileToSelect = Globals.Profiles.LastSelectedProfile;
+            string profileToSelect = profiles.LastSelectedProfile;
             if (!self.profile_select.Items.Contains(profileToSelect))
             {
                 profileToSelect = "Default"; // Fallback to "Default" if LastSelectedProfile is not found
@@ -1412,7 +1359,7 @@ namespace Doom_Launcher_Project
 
             Globals.SelectedProfile = profileToSelect;
             self.profile_select.SelectedItem = profileToSelect;
-            
+
         }
 
         public void AddProfile(Launcher_Window self)
@@ -1420,14 +1367,17 @@ namespace Doom_Launcher_Project
             string profileName = Prompt.ShowDialog("Enter profile name:", "New Profile");
             if (!string.IsNullOrWhiteSpace(profileName))
             {
-                if (Globals.Profiles.Configuration.ContainsKey(profileName))
+                List<Globals.GameConfigStructure> entries = Globals.Config.Configuration.Profiles.Entries;
+                if (entries.Any(p => p.Name == profileName))
                 {
                     MessageBox.Show("Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 Game_Options gameOpts = new Game_Options();
-                Globals.Profiles.Configuration[profileName] = gameOpts.GetConfigFromUI(self);
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                Globals.GameConfigStructure newProfile = gameOpts.GetConfigFromUI(self);
+                newProfile.Name = profileName;
+                entries.Add(newProfile);
+                ConfigStore.SaveAll();
                 Load_Profiles(self);
                 self.profile_select.SelectedItem = profileName;
             }
@@ -1441,9 +1391,9 @@ namespace Doom_Launcher_Project
                 if (profileName == "Default") { MessageBox.Show("Cannot remove Default profile."); return; }
                 if (MessageBox.Show($"Delete profile '{profileName}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
-                    Globals.Profiles.Configuration.Remove(profileName);
-                    File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                    Globals.Config.Configuration.Profiles.Entries.RemoveAll(p => p.Name == profileName);
                     Globals.SelectedProfile = "Default";
+                    ConfigStore.SaveAll();
                     Load_Profiles(self);
                 }
             }
