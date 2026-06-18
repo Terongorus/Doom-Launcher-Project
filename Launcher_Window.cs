@@ -26,12 +26,14 @@
             Profile_Options profile_options = new Profile_Options();
             profile_options.Load_Profiles(this);
 
-            game_options.OnlineModeEnable(this);
-
             this.add_profile.Click += new System.EventHandler(this.add_profile_Click);
             this.remove_profile.Click += new System.EventHandler(this.remove_profile_Click);
             this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
             this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
+
+            game_options.Load_GameOptions(this);
+            game_options.OnlineModeEnable(this);
+            game_options.GenerateExecutable(this);
         }
 
         private void label1_Click(object sender, EventArgs e)

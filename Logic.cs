@@ -1123,7 +1123,7 @@ namespace Doom_Launcher_Project
                 {
                     selected_wad = "";
                 }
-                if (self.mods_selection?.SelectedItem != null)
+                if (self.mods_selection?.CheckedItems.Count > 0)
                 {
                     string preselected_mod = string.Empty;
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
