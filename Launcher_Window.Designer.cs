@@ -115,7 +115,7 @@
             menu_control.Margin = new Padding(4);
             menu_control.Name = "menu_control";
             menu_control.SelectedIndex = 0;
-            menu_control.Size = new Size(985, 531);
+            menu_control.Size = new Size(985, 607);
             menu_control.TabIndex = 0;
             // 
             // profiles_tab
@@ -124,7 +124,7 @@
             profiles_tab.Location = new Point(4, 29);
             profiles_tab.Name = "profiles_tab";
             profiles_tab.Padding = new Padding(3);
-            profiles_tab.Size = new Size(977, 498);
+            profiles_tab.Size = new Size(977, 574);
             profiles_tab.TabIndex = 2;
             profiles_tab.Text = "Profiles";
             profiles_tab.UseVisualStyleBackColor = true;
@@ -152,7 +152,7 @@
             profiles_container.RowCount = 2;
             profiles_container.RowStyles.Add(new RowStyle());
             profiles_container.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            profiles_container.Size = new Size(971, 492);
+            profiles_container.Size = new Size(971, 568);
             profiles_container.TabIndex = 5;
             // 
             // remove_profile
@@ -176,7 +176,7 @@
             profile_select.Location = new Point(4, 35);
             profile_select.Margin = new Padding(4);
             profile_select.Name = "profile_select";
-            profile_select.Size = new Size(515, 453);
+            profile_select.Size = new Size(515, 529);
             profile_select.TabIndex = 6;
             // 
             // add_profile
@@ -236,7 +236,7 @@
             profile_details_textbox.Location = new Point(526, 34);
             profile_details_textbox.Name = "profile_details_textbox";
             profile_details_textbox.ReadOnly = true;
-            profile_details_textbox.Size = new Size(442, 455);
+            profile_details_textbox.Size = new Size(442, 531);
             profile_details_textbox.TabIndex = 8;
             profile_details_textbox.Text = "";
             // 
@@ -247,7 +247,7 @@
             game_options_tab.Margin = new Padding(4, 3, 4, 3);
             game_options_tab.Name = "game_options_tab";
             game_options_tab.Padding = new Padding(4, 3, 4, 3);
-            game_options_tab.Size = new Size(977, 498);
+            game_options_tab.Size = new Size(977, 574);
             game_options_tab.TabIndex = 0;
             game_options_tab.Text = "Game Options";
             game_options_tab.UseVisualStyleBackColor = true;
@@ -266,7 +266,7 @@
             game_options_container_outer.Name = "game_options_container_outer";
             game_options_container_outer.RowCount = 1;
             game_options_container_outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            game_options_container_outer.Size = new Size(969, 492);
+            game_options_container_outer.Size = new Size(969, 568);
             game_options_container_outer.TabIndex = 32;
             // 
             // game_options_container_inner_1
@@ -316,13 +316,13 @@
             game_options_container_inner_1.RowStyles.Add(new RowStyle());
             game_options_container_inner_1.RowStyles.Add(new RowStyle());
             game_options_container_inner_1.RowStyles.Add(new RowStyle());
-            game_options_container_inner_1.Size = new Size(474, 492);
+            game_options_container_inner_1.Size = new Size(474, 568);
             game_options_container_inner_1.TabIndex = 0;
             // 
             // dmflags2
             // 
             dmflags2.Dock = DockStyle.Fill;
-            dmflags2.Location = new Point(241, 395);
+            dmflags2.Location = new Point(241, 400);
             dmflags2.Margin = new Padding(4);
             dmflags2.Name = "dmflags2";
             dmflags2.Size = new Size(229, 26);
@@ -332,7 +332,7 @@
             // dmflags
             // 
             dmflags.Dock = DockStyle.Fill;
-            dmflags.Location = new Point(4, 395);
+            dmflags.Location = new Point(4, 400);
             dmflags.Margin = new Padding(4);
             dmflags.Name = "dmflags";
             dmflags.Size = new Size(229, 26);
@@ -343,7 +343,7 @@
             // 
             dmflags_label.AutoSize = true;
             dmflags_label.Dock = DockStyle.Fill;
-            dmflags_label.Location = new Point(4, 369);
+            dmflags_label.Location = new Point(4, 374);
             dmflags_label.Margin = new Padding(4, 20, 4, 2);
             dmflags_label.Name = "dmflags_label";
             dmflags_label.Size = new Size(229, 20);
@@ -354,7 +354,7 @@
             // 
             dmflags2_label.AutoSize = true;
             dmflags2_label.Dock = DockStyle.Fill;
-            dmflags2_label.Location = new Point(241, 369);
+            dmflags2_label.Location = new Point(241, 374);
             dmflags2_label.Margin = new Padding(4, 20, 4, 2);
             dmflags2_label.Name = "dmflags2_label";
             dmflags2_label.Size = new Size(229, 20);
@@ -364,7 +364,7 @@
             // time_limit
             // 
             time_limit.Dock = DockStyle.Fill;
-            time_limit.Location = new Point(241, 319);
+            time_limit.Location = new Point(241, 324);
             time_limit.Margin = new Padding(4);
             time_limit.Name = "time_limit";
             time_limit.Size = new Size(229, 26);
@@ -375,7 +375,7 @@
             // 
             time_limit_label.AutoSize = true;
             time_limit_label.Dock = DockStyle.Fill;
-            time_limit_label.Location = new Point(241, 293);
+            time_limit_label.Location = new Point(241, 298);
             time_limit_label.Margin = new Padding(4, 20, 4, 2);
             time_limit_label.Name = "time_limit_label";
             time_limit_label.Size = new Size(229, 20);
@@ -385,7 +385,7 @@
             // frag_limit
             // 
             frag_limit.Dock = DockStyle.Fill;
-            frag_limit.Location = new Point(4, 319);
+            frag_limit.Location = new Point(4, 324);
             frag_limit.Margin = new Padding(4);
             frag_limit.Name = "frag_limit";
             frag_limit.Size = new Size(229, 26);
@@ -396,7 +396,7 @@
             // 
             frag_limit_label.AutoSize = true;
             frag_limit_label.Dock = DockStyle.Fill;
-            frag_limit_label.Location = new Point(4, 293);
+            frag_limit_label.Location = new Point(4, 298);
             frag_limit_label.Margin = new Padding(4, 20, 4, 2);
             frag_limit_label.Name = "frag_limit_label";
             frag_limit_label.Size = new Size(229, 20);
@@ -406,7 +406,7 @@
             // port_textbox
             // 
             port_textbox.Dock = DockStyle.Fill;
-            port_textbox.Location = new Point(241, 243);
+            port_textbox.Location = new Point(241, 248);
             port_textbox.Margin = new Padding(4);
             port_textbox.Name = "port_textbox";
             port_textbox.Size = new Size(229, 26);
@@ -416,7 +416,7 @@
             // hostname_ip_textbox
             // 
             hostname_ip_textbox.Dock = DockStyle.Fill;
-            hostname_ip_textbox.Location = new Point(4, 243);
+            hostname_ip_textbox.Location = new Point(4, 248);
             hostname_ip_textbox.Margin = new Padding(4);
             hostname_ip_textbox.Name = "hostname_ip_textbox";
             hostname_ip_textbox.Size = new Size(229, 26);
@@ -427,7 +427,7 @@
             // 
             hostname_ip_label.AutoSize = true;
             hostname_ip_label.Dock = DockStyle.Fill;
-            hostname_ip_label.Location = new Point(4, 217);
+            hostname_ip_label.Location = new Point(4, 222);
             hostname_ip_label.Margin = new Padding(4, 20, 4, 2);
             hostname_ip_label.Name = "hostname_ip_label";
             hostname_ip_label.Size = new Size(229, 20);
@@ -438,7 +438,7 @@
             // 
             port_label.AutoSize = true;
             port_label.Dock = DockStyle.Fill;
-            port_label.Location = new Point(241, 217);
+            port_label.Location = new Point(241, 222);
             port_label.Margin = new Padding(4, 20, 4, 2);
             port_label.Name = "port_label";
             port_label.Size = new Size(229, 20);
@@ -553,7 +553,7 @@
             // additional_parameters_label
             // 
             additional_parameters_label.AutoSize = true;
-            additional_parameters_label.Location = new Point(4, 445);
+            additional_parameters_label.Location = new Point(4, 450);
             additional_parameters_label.Margin = new Padding(4, 20, 4, 2);
             additional_parameters_label.Name = "additional_parameters_label";
             additional_parameters_label.Size = new Size(168, 20);
@@ -565,13 +565,13 @@
             // 
             game_options_container_inner_1.SetColumnSpan(additional_parameters_textbox, 2);
             additional_parameters_textbox.Dock = DockStyle.Fill;
-            additional_parameters_textbox.Location = new Point(4, 471);
+            additional_parameters_textbox.Location = new Point(4, 476);
             additional_parameters_textbox.Margin = new Padding(4);
             additional_parameters_textbox.Name = "additional_parameters_textbox";
             additional_parameters_textbox.Size = new Size(466, 26);
             additional_parameters_textbox.TabIndex = 32;
             additional_parameters_textbox.TextChanged += additional_parameters_textbox_TextChanged;
-            //
+            // 
             // game_options_container_inner_2
             // 
             game_options_container_inner_2.AutoSize = true;
@@ -594,7 +594,7 @@
             game_options_container_inner_2.RowStyles.Add(new RowStyle());
             game_options_container_inner_2.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             game_options_container_inner_2.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            game_options_container_inner_2.Size = new Size(475, 492);
+            game_options_container_inner_2.Size = new Size(475, 568);
             game_options_container_inner_2.TabIndex = 15;
             // 
             // mods_selection
@@ -605,7 +605,7 @@
             mods_selection.Location = new Point(4, 124);
             mods_selection.Margin = new Padding(4);
             mods_selection.Name = "mods_selection";
-            mods_selection.Size = new Size(229, 364);
+            mods_selection.Size = new Size(229, 440);
             mods_selection.TabIndex = 14;
             mods_selection.ItemCheck += mods_selection_ItemCheck;
             // 
@@ -617,7 +617,7 @@
             wad_selection.Location = new Point(241, 124);
             wad_selection.Margin = new Padding(4);
             wad_selection.Name = "wad_selection";
-            wad_selection.Size = new Size(230, 364);
+            wad_selection.Size = new Size(230, 440);
             wad_selection.TabIndex = 2;
             wad_selection.SelectedIndexChanged += wad_selection_SelectedIndexChanged;
             // 
@@ -907,10 +907,10 @@
             play_button.Dock = DockStyle.Fill;
             play_button.FlatStyle = FlatStyle.Flat;
             play_button.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            play_button.Location = new Point(889, 543);
+            play_button.Location = new Point(889, 619);
             play_button.Margin = new Padding(4);
             play_button.Name = "play_button";
-            play_button.Size = new Size(100, 52);
+            play_button.Size = new Size(100, 56);
             play_button.TabIndex = 1;
             play_button.Text = "&Play";
             play_button.UseVisualStyleBackColor = true;
@@ -920,11 +920,11 @@
             // 
             command_line_view.BorderStyle = BorderStyle.FixedSingle;
             command_line_view.Dock = DockStyle.Fill;
-            command_line_view.Location = new Point(4, 543);
+            command_line_view.Location = new Point(4, 619);
             command_line_view.Margin = new Padding(4);
             command_line_view.Name = "command_line_view";
             command_line_view.ReadOnly = true;
-            command_line_view.Size = new Size(877, 52);
+            command_line_view.Size = new Size(877, 56);
             command_line_view.TabIndex = 2;
             command_line_view.Text = "";
             // 

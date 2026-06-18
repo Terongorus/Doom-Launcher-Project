@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.6.1] - 2026-06-18
+
+### Bug Fixes
+
+- Added the "Additional parameters" value to the Profiles tab details preview (#24) — it was saved and used in the launch command, but missing from the read-only summary alongside the other profile details (WAD, mods, difficulty, map, multiplayer options, engine).
+
 ## [1.6.0] - 2026-06-18
 
 ### New Features

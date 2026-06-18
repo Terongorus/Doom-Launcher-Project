@@ -1511,6 +1511,10 @@ namespace Doom_Launcher_Project
 
             AppendHeading(details, "Running using:");
             AppendValue(details, string.IsNullOrEmpty(profile.Selected_Engine) ? "(none)" : profile.Selected_Engine);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Additional parameters:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Additional_Parameters) ? "(none)" : profile.Additional_Parameters);
         }
 
         private static void AppendHeading(RichTextBox rtb, string text)
