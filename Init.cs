@@ -78,6 +78,8 @@ namespace Doom_Launcher_Project
             public string Engine_Nickname { get; set; } = string.Empty;
             public string Engine_Dir { get; set; } = string.Empty;
             public string Engine_Config { get; set; } = string.Empty;
+            // Optional "owner/repo" GitHub repo to check for newer releases (e.g. "ZDoom/gzdoom"). Blank = skip.
+            public string Engine_UpdateRepo { get; set; } = string.Empty;
         }
         //creates the list that will contain the Engines
         public static BindingList<EnginesListStructure> EnginesList = new BindingList<EnginesListStructure>();

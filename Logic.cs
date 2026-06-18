@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
 using Microsoft.VisualBasic.ApplicationServices;
 using System.Reflection;
+using System.IO.Compression;
 
 namespace Doom_Launcher_Project
 {
@@ -686,7 +687,7 @@ namespace Doom_Launcher_Project
 
             Form dialog = new Form()
             {
-                Width = 560, Height = 360, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Width = 560, Height = 420, FormBorderStyle = FormBorderStyle.FixedDialog,
                 Text = $"Edit Engine: {engine.Engine_Nickname}", StartPosition = FormStartPosition.CenterParent,
                 MaximizeBox = false, MinimizeBox = false
             };
@@ -730,13 +731,18 @@ namespace Doom_Launcher_Project
                 if (ofd.ShowDialog() == DialogResult.OK)
                     configBox.Text = ofd.FileName;
             };
-            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 285, Width = 80, DialogResult = DialogResult.OK };
-            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 285, Width = 80, DialogResult = DialogResult.Cancel };
+            // Update-check repo
+            Label updateRepoLabel = new Label() { Left = 10, Top = 215, Width = 530, Text = "Update-check repo (GitHub \"owner/repo\", e.g. ZDoom/gzdoom - leave blank to skip):" };
+            TextBox updateRepoBox = new TextBox() { Left = 10, Top = 240, Width = 520, Text = engine.Engine_UpdateRepo ?? string.Empty };
+
+            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 345, Width = 80, DialogResult = DialogResult.OK };
+            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 345, Width = 80, DialogResult = DialogResult.Cancel };
 
             dialog.Controls.AddRange(new Control[] {
                 nicknameLabel, nicknameBox,
                 dirLabel, dirBox, browseExeBtn,
                 configLabel, configBox, browseConfigBtn,
+                updateRepoLabel, updateRepoBox,
                 okBtn, cancelBtn
             });
             dialog.AcceptButton = okBtn;
@@ -747,8 +753,277 @@ namespace Doom_Launcher_Project
                 engine.Engine_Nickname = nicknameBox.Text.Trim();
                 engine.Engine_Dir = dirBox.Text.Trim();
                 engine.Engine_Config = configBox.Text.Trim();
+                engine.Engine_UpdateRepo = updateRepoBox.Text.Trim();
                 ConfigStore.SaveAll();
                 this.Load_Engines(self);
+            }
+        }
+
+        private class EngineUpdateInfo
+        {
+            public Globals.EnginesListStructure Engine { get; set; } = null!;
+            public string CurrentVersion { get; set; } = string.Empty;
+            public string LatestVersion { get; set; } = string.Empty;
+            public string ReleaseUrl { get; set; } = string.Empty;
+            public string? AssetUrl { get; set; }
+        }
+
+        private class GitHubRelease
+        {
+            [JsonPropertyName("tag_name")]
+            public string TagName { get; set; } = string.Empty;
+            [JsonPropertyName("html_url")]
+            public string HtmlUrl { get; set; } = string.Empty;
+            [JsonPropertyName("assets")]
+            public List<GitHubAsset> Assets { get; set; } = new();
+        }
+
+        private class GitHubAsset
+        {
+            [JsonPropertyName("name")]
+            public string Name { get; set; } = string.Empty;
+            [JsonPropertyName("browser_download_url")]
+            public string BrowserDownloadUrl { get; set; } = string.Empty;
+        }
+
+        // Checks every configured engine that has an Engine_UpdateRepo set against that
+        // repo's latest GitHub release, and offers to update any that are out of date.
+        // Failures (no network, repo not found, unparsable version, etc.) are skipped
+        // silently per-engine so a flaky connection never blocks startup.
+        public async Task CheckForUpdatesOnStartupAsync(Launcher_Window self)
+        {
+            try
+            {
+                ConfigStore.LoadAll();
+                List<EngineUpdateInfo> updatesAvailable = new();
+
+                using HttpClient client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Teron-Doom-Launcher");
+                client.Timeout = TimeSpan.FromSeconds(10);
+
+                foreach (Globals.EnginesListStructure engine in Globals.EnginesList.ToList())
+                {
+                    if (string.IsNullOrWhiteSpace(engine.Engine_UpdateRepo) || !File.Exists(engine.Engine_Dir))
+                        continue;
+
+                    try
+                    {
+                        GitHubRelease? release = await GetLatestReleaseAsync(client, engine.Engine_UpdateRepo);
+                        if (release == null)
+                            continue;
+
+                        string localVersion = NormalizeVersionForCompare(FileVersionInfo.GetVersionInfo(engine.Engine_Dir).FileVersion ?? string.Empty);
+                        string latestVersion = NormalizeVersionForCompare(release.TagName);
+
+                        if (Version.TryParse(localVersion, out Version? local) &&
+                            Version.TryParse(latestVersion, out Version? latest) &&
+                            latest > local)
+                        {
+                            updatesAvailable.Add(new EngineUpdateInfo
+                            {
+                                Engine = engine,
+                                CurrentVersion = localVersion,
+                                LatestVersion = latestVersion,
+                                ReleaseUrl = release.HtmlUrl,
+                                AssetUrl = FindWindowsAsset(release.Assets)?.BrowserDownloadUrl
+                            });
+                        }
+                    }
+                    catch
+                    {
+                        // Skip this engine's check; one bad repo/network blip shouldn't block the rest.
+                    }
+                }
+
+                // Deferred via BeginInvoke so the dialog runs as its own fresh message-loop
+                // iteration instead of nested inside this async continuation.
+                if (updatesAvailable.Count > 0)
+                    self.BeginInvoke(new Action(() => ShowUpdatesDialog(self, updatesAvailable)));
+            }
+            catch
+            {
+                // Update checking is a convenience, never let it disrupt startup.
+            }
+        }
+
+        private static async Task<GitHubRelease?> GetLatestReleaseAsync(HttpClient client, string repo)
+        {
+            string url = $"https://api.github.com/repos/{repo.Trim('/')}/releases/latest";
+            using HttpResponseMessage response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+                return null;
+            string json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<GitHubRelease>(json);
+        }
+
+        // Mirrors BuildDefaultNickname's version stripping, plus a trailing "-suffix" strip
+        // (e.g. "4.14.2-m") so System.Version can parse it for comparison.
+        private static string NormalizeVersionForCompare(string raw)
+        {
+            string version = raw.Trim();
+            int spaceIndex = version.IndexOf(' ');
+            if (spaceIndex > 0)
+                version = version.Substring(0, spaceIndex);
+            if (version.Length > 1 && (version[0] is 'g' or 'G' or 'v' or 'V'))
+                version = version.Substring(1);
+            int dashIndex = version.IndexOf('-');
+            if (dashIndex > 0)
+                version = version.Substring(0, dashIndex);
+            return version;
+        }
+
+        // Picks the most likely Windows release asset out of a release's attachments.
+        // Returns null when it can't confidently tell (caller falls back to the release page).
+        private static GitHubAsset? FindWindowsAsset(List<GitHubAsset> assets)
+        {
+            List<GitHubAsset> zipAssets = assets.Where(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (zipAssets.Count == 0)
+                return null;
+
+            string[] excludeTerms = { "macos", "osx", "linux", "src", "source", "android" };
+            List<GitHubAsset> candidates = zipAssets.Where(a => !excludeTerms.Any(t => a.Name.Contains(t, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (candidates.Count == 0)
+                candidates = zipAssets;
+
+            string[] preferTerms = { "win64", "x64", "win" };
+            foreach (string term in preferTerms)
+            {
+                GitHubAsset? match = candidates.FirstOrDefault(a => a.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                    return match;
+            }
+            return candidates.Count == 1 ? candidates[0] : null;
+        }
+
+        private void ShowUpdatesDialog(Launcher_Window self, List<EngineUpdateInfo> updates)
+        {
+            Form dialog = new Form()
+            {
+                Width = 540, Height = 400, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = "Engine Updates Available", StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            Label info = new Label()
+            {
+                Left = 10, Top = 10, Width = 510, Height = 40,
+                Text = "The following engines have newer versions available. Select which ones to update now:"
+            };
+            CheckedListBox list = new CheckedListBox() { Left = 10, Top = 55, Width = 510, Height = 230, CheckOnClick = true };
+            foreach (EngineUpdateInfo update in updates)
+                list.Items.Add($"{update.Engine.Engine_Nickname}  ({update.CurrentVersion} -> {update.LatestVersion})", true);
+
+            Button updateBtn = new Button() { Text = "Update Selected", Left = 250, Top = 300, Width = 130 };
+            Button skipBtn = new Button() { Text = "Skip", Left = 390, Top = 300, Width = 130, DialogResult = DialogResult.Cancel };
+
+            updateBtn.Click += async (s, e) =>
+            {
+                int selectedCount = Enumerable.Range(0, updates.Count).Count(i => list.GetItemChecked(i));
+                if (selectedCount == 0)
+                    return;
+
+                DialogResult confirm = MessageBox.Show(
+                    $"This will download and replace {selectedCount} engine executable(s) in place. The current file(s) will be backed up with a \".bak\" suffix first. Continue?",
+                    "Confirm Engine Update", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm != DialogResult.Yes)
+                    return;
+
+                updateBtn.Enabled = false;
+                skipBtn.Enabled = false;
+                List<string> results = new();
+
+                for (int i = 0; i < updates.Count; i++)
+                {
+                    if (!list.GetItemChecked(i))
+                        continue;
+
+                    EngineUpdateInfo update = updates[i];
+                    if (string.IsNullOrEmpty(update.AssetUrl))
+                    {
+                        results.Add($"{update.Engine.Engine_Nickname}: couldn't tell which download to use automatically - opening the release page instead.");
+                        if (!string.IsNullOrEmpty(update.ReleaseUrl))
+                            Process.Start(new ProcessStartInfo(update.ReleaseUrl) { UseShellExecute = true });
+                        continue;
+                    }
+
+                    try
+                    {
+                        await ApplyUpdateAsync(update.Engine, update.AssetUrl);
+                        results.Add($"{update.Engine.Engine_Nickname}: updated to {update.LatestVersion}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Add($"{update.Engine.Engine_Nickname}: update failed ({ex.Message}). The previous executable was backed up to \"{Path.GetFileName(update.Engine.Engine_Dir)}.bak\" before any changes, so a partial copy can be restored manually if needed.");
+                    }
+                }
+
+                ConfigStore.SaveAll();
+                this.Load_Engines(self);
+
+                if (results.Count > 0)
+                    MessageBox.Show(string.Join("\n", results), "Engine Update Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                dialog.Close();
+            };
+
+            dialog.Controls.AddRange(new Control[] { info, list, updateBtn, skipBtn });
+            dialog.CancelButton = skipBtn;
+            dialog.ShowDialog();
+        }
+
+        // Downloads the release zip, extracts it, backs up the current executable, then copies
+        // every extracted file over the engine's install directory (so bundled .pk3/.dll files
+        // get refreshed too, not just the exe). The zip's own exe (e.g. "gzdoom.exe") is mapped
+        // onto engine.Engine_Dir explicitly, since the user may have renamed their copy.
+        private async Task ApplyUpdateAsync(Globals.EnginesListStructure engine, string assetUrl)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "tdl_engine_update_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string zipPath = Path.Combine(tempDir, "update.zip");
+                string extractDir = Path.Combine(tempDir, "extracted");
+
+                using HttpClient client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Teron-Doom-Launcher");
+                byte[] data = await client.GetByteArrayAsync(assetUrl);
+                await File.WriteAllBytesAsync(zipPath, data);
+
+                ZipFile.ExtractToDirectory(zipPath, extractDir);
+
+                // If the zip wraps everything in one top-level folder, step into it.
+                string sourceRoot = extractDir;
+                string[] topEntries = Directory.GetFileSystemEntries(extractDir);
+                if (topEntries.Length == 1 && Directory.Exists(topEntries[0]))
+                    sourceRoot = topEntries[0];
+
+                // The zip ships its exe under its own name (e.g. "gzdoom.exe"), which may not
+                // match the user's renamed copy (e.g. "uzdoom.exe") - find it at the top level
+                // and map it explicitly onto engine.Engine_Dir instead of copying it by its own name.
+                string[] topLevelExes = Directory.GetFiles(sourceRoot, "*.exe", SearchOption.TopDirectoryOnly);
+                if (topLevelExes.Length != 1)
+                    throw new InvalidOperationException($"couldn't identify the engine executable in the downloaded release ({topLevelExes.Length} .exe files found at the top level)");
+                string newExePath = topLevelExes[0];
+
+                string engineDir = Path.GetDirectoryName(engine.Engine_Dir) ?? string.Empty;
+                string backupPath = engine.Engine_Dir + ".bak";
+                File.Copy(engine.Engine_Dir, backupPath, overwrite: true);
+
+                foreach (string filePath in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
+                {
+                    string destPath = filePath == newExePath
+                        ? engine.Engine_Dir
+                        : Path.Combine(engineDir, Path.GetRelativePath(sourceRoot, filePath));
+                    string? destDir = Path.GetDirectoryName(destPath);
+                    if (!string.IsNullOrEmpty(destDir))
+                        Directory.CreateDirectory(destDir);
+                    File.Copy(filePath, destPath, overwrite: true);
+                }
+
+                engine.Engine_Nickname = BuildDefaultNickname(engine.Engine_Dir);
+            }
+            finally
+            {
+                try { Directory.Delete(tempDir, true); } catch { /* best-effort cleanup of the temp download */ }
             }
         }
     }

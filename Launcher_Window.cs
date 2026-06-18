@@ -35,6 +35,7 @@
             this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
             this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
             this.profile_select.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.profile_select_MouseDoubleClick);
+            this.Shown += new System.EventHandler(this.Launcher_Window_Shown);
 
             game_options.Load_GameOptions(this);
             game_options.OnlineModeEnable(this);
@@ -119,6 +120,13 @@
         {
             Game_Options game_options = new Game_Options();
             game_options.Save_GameOptions(this);
+        }
+
+        private async void Launcher_Window_Shown(object? sender, EventArgs e)
+        {
+            // Runs after the main window is visible so the update popup never appears before it.
+            Engine_Options engine_options = new Engine_Options();
+            await engine_options.CheckForUpdatesOnStartupAsync(this);
         }
 
         private void Launcher_Window_FormClosing(object? sender, FormClosingEventArgs e)

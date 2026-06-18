@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.7.0] - 2026-06-19
+
+### New Features
+
+- **Engine update checking** (#25) — engines can now have an optional "Update-check repo" (GitHub `owner/repo`, set via the Edit Engine dialog) tracking the official source of that engine. On startup, the launcher checks each configured repo's latest release against the installed executable's version and offers a popup listing any that are out of date. Choosing to update downloads the matching Windows release asset, backs up the current executable (`.bak`), and replaces it and its bundled files in place — mapping the release's own executable name onto whatever the engine was renamed to locally. A confirmation prompt guards the actual download/replace step.
+
 ## [1.6.1] - 2026-06-18
 
 ### Bug Fixes
