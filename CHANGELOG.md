@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.3.3] - 2026-06-18
+
+### Bug Fixes
+
+- Fixed multiplayer fields (game mode, players, hostname/IP, port, frag/time limit, DMFLAGS/DMFLAGS2) keeping their old values after disabling Multiplayer Mode (#19) — they were only grayed out, not cleared, so re-enabling multiplayer later (or just looking at the saved profile) would resurface stale settings from before. Disabling multiplayer now blanks all of these alongside disabling them.
+
 ## [1.3.2] - 2026-06-18
 
 ### Bug Fixes

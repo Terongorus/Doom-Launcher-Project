@@ -834,7 +834,7 @@ namespace Doom_Launcher_Project
                 self.dmflags2_label.Enabled = true;
                 self.dmflags2.Enabled = true;
             }
-            else 
+            else
             {
                 self.game_mode_label.Enabled = false;
                 self.multiplayer_game_mode_select.Enabled = false;
@@ -852,6 +852,17 @@ namespace Doom_Launcher_Project
                 self.dmflags.Enabled = false;
                 self.dmflags2_label.Enabled = false;
                 self.dmflags2.Enabled = false;
+
+                // Multiplayer is off: clear the online-game values too, instead of just
+                // disabling controls that still display stale data underneath.
+                self.multiplayer_game_mode_select.SelectedIndex = -1;
+                self.players_host_select.SelectedIndex = -1;
+                self.hostname_ip_textbox.Text = string.Empty;
+                self.port_textbox.Text = string.Empty;
+                self.frag_limit.Text = string.Empty;
+                self.time_limit.Text = string.Empty;
+                self.dmflags.Text = string.Empty;
+                self.dmflags2.Text = string.Empty;
             }
         }
 
