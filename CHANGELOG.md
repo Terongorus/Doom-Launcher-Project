@@ -2,6 +2,13 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.2.1] - 2026-06-18
+
+### Bug Fixes
+
+- Fixed the saved profile's settings not being applied to the Game Options UI on launch — selecting a profile from the dropdown always worked, but the profile auto-selected on startup never had its engine/WAD/map/skill/mods/multiplayer fields populated until you manually reselected it.
+- Fixed the generated launch command including mods based on which row was highlighted in the mods list instead of which checkboxes were actually checked — checked mods with no row selected (or selected rows that weren't checked) were handled incorrectly in the `-file` argument.
+
 ## [1.2.0] - 2026-06-18
 
 ### New Features
