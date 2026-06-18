@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.4.0] - 2026-06-18
+
+### New Features
+
+- **Double-click to launch** (#21) — double-clicking a profile in the Profiles tab list now loads its configuration and immediately starts the game, instead of requiring a click to select it followed by a separate click on Play.
+
 ## [1.3.3] - 2026-06-18
 
 ### Bug Fixes

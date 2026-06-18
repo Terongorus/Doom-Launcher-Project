@@ -30,6 +30,7 @@
             this.remove_profile.Click += new System.EventHandler(this.remove_profile_Click);
             this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
             this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
+            this.profile_select.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.profile_select_MouseDoubleClick);
 
             game_options.Load_GameOptions(this);
             game_options.OnlineModeEnable(this);
@@ -191,6 +192,17 @@
                 game_options.Load_GameOptions(this);
                 SyncConfig();
             }
+        }
+
+        private void profile_select_MouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            // Only act when the double-click actually landed on a profile row, not on
+            // empty list space below the last entry.
+            if (profile_select.IndexFromPoint(e.Location) == ListBox.NoMatches)
+                return;
+
+            Game_Options game_options = new Game_Options();
+            game_options.PlayGame(this);
         }
 
         private void map_selection_SelectedIndexChanged(object sender, EventArgs e)
