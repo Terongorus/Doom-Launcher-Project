@@ -19,6 +19,7 @@ namespace Doom_Launcher_Project
         public static string engine_config_path = "engine_config.json";
         public static string mods_config_path = "mods_config.json";
         public static string game_config_path = "game_config.json";
+        public static string wad_levels_db_path = "wad_levels_database.json";
 
         //regular wad names container
         public static string[] match_1 =
@@ -46,94 +47,6 @@ namespace Doom_Launcher_Project
             "doomzero.wad"
         };
 
-        //maps container for Doom 1
-        public static string[] doom_1_maps = new string[]
-        {
-            "(Default)",
-            "E1M1",
-            "E1M2",
-            "E1M3",
-            "E1M4",
-            "E1M5",
-            "E1M6",
-            "E1M7",
-            "E1M8",
-            "E1M9",
-            "E2M1",
-            "E2M2",
-            "E2M3",
-            "E2M4",
-            "E2M5",
-            "E2M6",
-            "E2M7",
-            "E2M8",
-            "E2M9",
-            "E3M1",
-            "E3M2",
-            "E3M3",
-            "E3M4",
-            "E3M5",
-            "E3M6",
-            "E3M7",
-            "E3M8",
-            "E3M9",
-            "E4M1",
-            "E4M2",
-            "E4M3",
-            "E4M4",
-            "E4M5",
-            "E4M6",
-            "E4M7",
-            "E4M8",
-            "E4M9"
-        };
-
-        //maps container for Doom 2
-        public static string[] doom_2_maps = new string[]
-        {
-            "(Default)",
-            "MAP01",
-            "MAP02",
-            "MAP03",
-            "MAP04",
-            "MAP05",
-            "MAP06",
-            "MAP07",
-            "MAP08",
-            "MAP09",
-            "MAP10",
-            "MAP11",
-            "MAP12",
-            "MAP13",
-            "MAP14",
-            "MAP15",
-            "MAP16",
-            "MAP17",
-            "MAP18",
-            "MAP19",
-            "MAP20",
-            "MAP21",
-            "MAP22",
-            "MAP23",
-            "MAP24",
-            "MAP25",
-            "MAP26",
-            "MAP27",
-            "MAP28",
-            "MAP29",
-            "MAP30",
-            "MAP31",
-            "MAP32",
-            "MAP33",
-            "MAP34",
-            "MAP35",
-            "MAP36",
-            "MAP37",
-            "MAP38",
-            "MAP39",
-            "MAP40"
-        };
-
         public class WADMatchListStructure
         {
             public string wad_name { get; set; } = string.Empty;
@@ -154,7 +67,6 @@ namespace Doom_Launcher_Project
         //creates a template of the Engines list (the structure)
         public class EnginesListStructure
         {
-            public string Engine_Name { get; set; } = string.Empty;
             public string Engine_Nickname { get; set; } = string.Empty;
             public string Engine_Dir { get; set; } = string.Empty;
             public string Engine_Config { get; set; } = string.Empty;

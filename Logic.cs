@@ -9,66 +9,213 @@ using System.Reflection;
 
 namespace Doom_Launcher_Project
 {
+    // Parses the raw WAD binary format (header + lump directory) instead of matching
+    // against hardcoded filename/lump lists.
+    public static class WadBinaryUtils
+    {
+        private static readonly Regex ExMyLumpPattern = new Regex(@"^E[0-9]M[0-9]$", RegexOptions.Compiled);
+        private static readonly Regex MapxyLumpPattern = new Regex(@"^MAP[0-9]{2}$", RegexOptions.Compiled);
+
+        // Reads the 4-byte "IWAD"/"PWAD" signature from the start of a WAD file.
+        public static string ReadWadIdentification(string path)
+        {
+            try
+            {
+                using FileStream fs = File.OpenRead(path);
+                byte[] header = new byte[4];
+                if (fs.Read(header, 0, 4) != 4) return string.Empty;
+                return System.Text.Encoding.ASCII.GetString(header);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        // Walks the WAD's lump directory and returns every ExMy/MAPxy level marker lump
+        // found, in directory order, deduplicated.
+        public static List<string> ScanLevelLumps(string path)
+        {
+            List<string> levels = new List<string>();
+            try
+            {
+                using FileStream fs = File.OpenRead(path);
+                using BinaryReader reader = new BinaryReader(fs);
+                if (fs.Length < 12) return levels;
+
+                string identification = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(4));
+                if (identification != "IWAD" && identification != "PWAD") return levels;
+
+                int numLumps = reader.ReadInt32();
+                int dirOffset = reader.ReadInt32();
+                if (numLumps <= 0 || dirOffset < 0 || dirOffset + (long)numLumps * 16 > fs.Length) return levels;
+
+                fs.Seek(dirOffset, SeekOrigin.Begin);
+                for (int i = 0; i < numLumps; i++)
+                {
+                    reader.ReadInt32(); // lump data offset, unused for level detection
+                    reader.ReadInt32(); // lump size, unused for level detection
+                    string name = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(8)).TrimEnd('\0').ToUpperInvariant();
+
+                    if ((ExMyLumpPattern.IsMatch(name) || MapxyLumpPattern.IsMatch(name)) && !levels.Contains(name))
+                        levels.Add(name);
+                }
+            }
+            catch
+            {
+                return new List<string>();
+            }
+            return levels;
+        }
+    }
+
+    // Caches the level lumps found in each WAD so a given file only needs to be
+    // binary-scanned once.
+    public static class WadLevelDatabase
+    {
+        public static List<string> GetLevels(string wadPath)
+        {
+            string key = Path.GetFullPath(wadPath);
+            Dictionary<string, List<string>> database = Load();
+
+            if (database.TryGetValue(key, out List<string>? cachedLevels))
+                return cachedLevels;
+
+            List<string> levels = WadBinaryUtils.ScanLevelLumps(wadPath);
+            levels.Sort((a, b) => GetSortKey(a).CompareTo(GetSortKey(b)));
+
+            database[key] = levels;
+            Save(database);
+            return levels;
+        }
+
+        private static int GetSortKey(string name)
+        {
+            if (name.Length == 4 && name[0] == 'E' && name[2] == 'M')
+                return (name[1] - '0') * 10 + (name[3] - '0');
+            if (name.Length == 5 && name.StartsWith("MAP"))
+                return 1000 + int.Parse(name.Substring(3, 2));
+            return int.MaxValue;
+        }
+
+        private static Dictionary<string, List<string>> Load()
+        {
+            if (File.Exists(Globals.wad_levels_db_path))
+            {
+                string json = File.ReadAllText(Globals.wad_levels_db_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    try
+                    {
+                        var loaded = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
+                        if (loaded != null)
+                            return new Dictionary<string, List<string>>(loaded, StringComparer.OrdinalIgnoreCase);
+                    }
+                    catch { /* fall through to a fresh database */ }
+                }
+            }
+            return new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void Save(Dictionary<string, List<string>> database)
+        {
+            File.WriteAllText(Globals.wad_levels_db_path, JsonSerializer.Serialize(database));
+        }
+    }
+
     public class WAD_Options
     {
         public void AddWADs(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            // Bootstrap both backing config files so newly-detected IWADs and PWADs/mods
+            // each have somewhere to land, regardless of which one is missing.
+            if (!File.Exists(Globals.wad_config_path))
+                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(new BindingList<Globals.WADListStructure>()));
+            if (!File.Exists(Globals.mods_config_path))
+                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(new BindingList<Globals.ModsListStructure>()));
+
+            string wadJson = File.ReadAllText(Globals.wad_config_path);
+            Globals.WADList = string.IsNullOrWhiteSpace(wadJson)
+                ? new BindingList<Globals.WADListStructure>()
+                : JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wadJson) ?? new();
+
+            string modsJson = File.ReadAllText(Globals.mods_config_path);
+            Globals.ModsList = string.IsNullOrWhiteSpace(modsJson)
+                ? new BindingList<Globals.ModsListStructure>()
+                : JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(modsJson) ?? new();
+
+            // Drop placeholder empty entries left over from earlier bootstrapping
+            for (int i = Globals.WADList.Count - 1; i >= 0; i--)
+                if (string.IsNullOrEmpty(Globals.WADList[i].WAD_Dir) && string.IsNullOrEmpty(Globals.WADList[i].WAD_Name))
+                    Globals.WADList.RemoveAt(i);
+            for (int i = Globals.ModsList.Count - 1; i >= 0; i--)
+                if (string.IsNullOrEmpty(Globals.ModsList[i].Mod_Dir) && string.IsNullOrEmpty(Globals.ModsList[i].Mod_Name))
+                    Globals.ModsList.RemoveAt(i);
+
+            //opens a file dialog to select WAD or mod files - they get sorted automatically below
+            OpenFileDialog WADFileDialog = new OpenFileDialog
             {
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.wad_config_path)))
+                Title = "Select WAD/Mod Files",
+                Filter = "WAD/Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+
+            if (WADFileDialog.ShowDialog() != DialogResult.OK)
+            {
+                MessageBox.Show("No WAD/mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int addedWads = 0, addedMods = 0;
+            foreach (string file in WADFileDialog.FileNames)
+            {
+                if (Globals.WADList.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                    Globals.ModsList.Any(m => m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Globals.WADList?.Clear();
+                    continue; // Skip adding this duplicate
                 }
-                else 
+
+                // Binary-detect the WAD type rather than trusting the file extension: IWADs
+                // (main game data) go to the WAD list, PWADs and everything else (pk3/zip/etc.,
+                // which are loaded the same way as PWADs) go to the mods list.
+                if (WadBinaryUtils.ReadWadIdentification(file) == "IWAD")
                 {
-                    string json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                }
-                
-                //opens a file dialog to select WAD files
-                OpenFileDialog WADFileDialog = new OpenFileDialog
-                {
-                    Title = "Select WAD Files",
-                    Filter = "WAD Files (*.wad)|*.wad|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (WADFileDialog.ShowDialog() == DialogResult.OK && Globals.WADList != null && self.wads_list != null)
-                {
-                    foreach (string file in WADFileDialog.FileNames)
+                    Globals.WADList.Add(new Globals.WADListStructure
                     {
-                        if (Globals.WADList.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue; // Skip adding this duplicate WAD
-                        }
-                        if (Globals.WADList.Any(w => w.WAD_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.WADList.Any(w => w.WAD_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.WADList.RemoveAt(0);
-                        }
-                        Globals.WADListStructure wad_entry = new Globals.WADListStructure
-                        {
-                            WAD_Name = Path.GetFileNameWithoutExtension(file),
-                            WAD_Dir = file
-                        };
-                        Globals.WADList.Add(wad_entry);
-                    }
-                    File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize((Globals.WADList)));
-                    MessageBox.Show("WAD/WADs added and configuration updated.", "WADs Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.Load_WADs(self);
+                        WAD_Name = Path.GetFileNameWithoutExtension(file),
+                        WAD_Dir = file
+                    });
+                    addedWads++;
                 }
                 else
                 {
-                    MessageBox.Show("No WAD files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    Globals.ModsList.Add(new Globals.ModsListStructure
+                    {
+                        Mod_Name = Path.GetFileNameWithoutExtension(file),
+                        Mod_Dir = file
+                    });
+                    addedMods++;
                 }
             }
-            else
+
+            if (addedWads == 0 && addedMods == 0)
             {
-                Globals.WADList = new BindingList<Globals.WADListStructure>
-                {
-                    new Globals.WADListStructure {WAD_Name = "", WAD_Dir = ""}
-                };
+                MessageBox.Show("All selected files were already in the WAD/mod list.", "Nothing Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (addedWads > 0)
                 File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add WAD files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (addedMods > 0)
+                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+
+            MessageBox.Show($"{addedWads} WAD(s) and {addedMods} mod(s) added and configuration updated.", "Files Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            this.Load_WADs(self);
+            if (addedMods > 0)
+            {
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
             }
         }
 
@@ -93,6 +240,21 @@ namespace Doom_Launcher_Project
                             break;
                         }
                     }
+
+                    // wads_list lists every game file added via AddWADs (IWADs and mods alike);
+                    // wad_selection/mods_selection are the ones that sort IWADs from mods.
+                    if (File.Exists(Globals.mods_config_path))
+                    {
+                        string modsJson = File.ReadAllText(Globals.mods_config_path);
+                        if (!string.IsNullOrWhiteSpace(modsJson))
+                            Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(modsJson) ?? new();
+                    }
+                    foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
+                    {
+                        if (!string.IsNullOrEmpty(mod_file.Mod_Name) && !string.IsNullOrEmpty(mod_file.Mod_Dir))
+                            self.wads_list?.Items.Add(mod_file.Mod_Name + " [" + mod_file.Mod_Dir + "]");
+                    }
+
                     Game_Options game_options = new Game_Options();
                     game_options.Load_WADsToList(self);
                 }
@@ -114,41 +276,70 @@ namespace Doom_Launcher_Project
 
         public void Remove_WAD(Launcher_Window self)
         {
-            if (self.wads_list?.SelectedItems.Count > 0 && Globals.WADList != null)
-            {
-                // Batch removals and save once to disk
-                var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
-                foreach (int index in selectedIndices)
-                {
-                    self.wads_list?.Items.RemoveAt(index);
-                    Globals.WADList.RemoveAt(index);
-                }
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-
-                Game_Options game_options = new Game_Options();
-                game_options.Load_WADsToList(self);
-
-                MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
+            if (self.wads_list == null || self.wads_list.SelectedIndices.Count == 0)
             {
                 MessageBox.Show("No WAD/WADs selected to remove.", "Removal Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
+
+            // wads_list displays WADList entries followed by ModsList entries (see Load_WADs),
+            // so anything at or past wadCount belongs to ModsList.
+            int wadCount = Globals.WADList.Count;
+            var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
+
+            bool removedWad = false, removedMod = false;
+            foreach (int index in selectedIndices)
+            {
+                if (index < wadCount)
+                {
+                    Globals.WADList.RemoveAt(index);
+                    removedWad = true;
+                }
+                else
+                {
+                    Globals.ModsList.RemoveAt(index - wadCount);
+                    removedMod = true;
+                }
+            }
+
+            if (removedWad)
+                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
+            if (removedMod)
+                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+
+            this.Load_WADs(self);
+            if (removedMod)
+            {
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
+            }
+
+            MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public void Edit_WAD(Launcher_Window self)
         {
-            if (self.wads_list?.SelectedItem == null || Globals.WADList == null)
+            if (self.wads_list?.SelectedItem == null)
             {
-                MessageBox.Show("No WAD selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No WAD/mod selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             int selectedIndex = self.wads_list.SelectedIndex;
-            if (selectedIndex < 0 || selectedIndex >= Globals.WADList.Count) return;
+            int wadCount = Globals.WADList.Count;
 
-            var wad = Globals.WADList[selectedIndex];
+            if (selectedIndex >= 0 && selectedIndex < wadCount)
+            {
+                EditWadEntry(self, Globals.WADList[selectedIndex]);
+            }
+            else if (selectedIndex >= wadCount && selectedIndex < wadCount + Globals.ModsList.Count)
+            {
+                EditModEntry(self, Globals.ModsList[selectedIndex - wadCount]);
+            }
+        }
 
+        private void EditWadEntry(Launcher_Window self, Globals.WADListStructure wad)
+        {
             Form dialog = new Form()
             {
                 Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -188,15 +379,90 @@ namespace Doom_Launcher_Project
                 wad.WAD_Dir = dirBox.Text.Trim();
                 File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
 
-                Game_Options game_options = new Game_Options();
                 this.Load_WADs(self);
+                Game_Options game_options = new Game_Options();
                 game_options.Load_WADsToList(self);
+            }
+        }
+
+        private void EditModEntry(Launcher_Window self, Globals.ModsListStructure mod)
+        {
+            Form dialog = new Form()
+            {
+                Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = $"Edit Mod: {mod.Mod_Name}", StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            Label nameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "Mod name:" };
+            TextBox nameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = mod.Mod_Name ?? string.Empty };
+
+            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "Mod file path:" };
+            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = mod.Mod_Dir ?? string.Empty };
+            Button browseBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            browseBtn.Click += (s, e) =>
+            {
+                using OpenFileDialog ofd = new OpenFileDialog
+                {
+                    Title = "Select Mod File",
+                    Filter = "Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*"
+                };
+                if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
+                if (ofd.ShowDialog() == DialogResult.OK)
+                    dirBox.Text = ofd.FileName;
+            };
+
+            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 155, Width = 80, DialogResult = DialogResult.OK };
+            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 155, Width = 80, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] { nameLabel, nameBox, dirLabel, dirBox, browseBtn, okBtn, cancelBtn });
+            dialog.AcceptButton = okBtn;
+            dialog.CancelButton = cancelBtn;
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                mod.Mod_Name = nameBox.Text.Trim();
+                mod.Mod_Dir = dirBox.Text.Trim();
+                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
+
+                this.Load_WADs(self);
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
             }
         }
     }
 
     public class Engine_Options
     {
+        // Builds a default nickname from the executable's own file version metadata
+        // (e.g. "gzdoom-4.11.0") instead of guessing from the file path.
+        private static string BuildDefaultNickname(string file)
+        {
+            string baseName = Path.GetFileNameWithoutExtension(file);
+            try
+            {
+                FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(file);
+                string version = versionInfo.FileVersion?.Trim() ?? string.Empty;
+
+                // Some files (e.g. Windows system binaries) append build metadata after a
+                // space, like "10.0.26100.8457 (WinBuild.160101.0800)" - keep just the version.
+                int spaceIndex = version.IndexOf(' ');
+                if (spaceIndex > 0)
+                    version = version.Substring(0, spaceIndex);
+
+                // Strip a leading 'g' (GZDoom) or 'v' so we don't end up with "gzdoom-g4.11.0"
+                if (version.Length > 1 && (version[0] is 'g' or 'G' or 'v' or 'V'))
+                    version = version.Substring(1);
+
+                return string.IsNullOrEmpty(version) ? baseName : $"{baseName}-{version}";
+            }
+            catch
+            {
+                return baseName;
+            }
+        }
+
         public void AddEngines(Launcher_Window self)
         {
             if (File.Exists(Globals.engine_config_path))
@@ -226,14 +492,13 @@ namespace Doom_Launcher_Project
                         {
                             continue; // Skip adding this duplicate engine
                         }
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
+                        if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
                         {
                             Globals.EnginesList.RemoveAt(0);
                         }
                         Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
                         {
-                            Engine_Name = Path.GetFileNameWithoutExtension(file),
-                            Engine_Nickname = Path.GetDirectoryName(file) ?? string.Empty,
+                            Engine_Nickname = BuildDefaultNickname(file),
                             Engine_Dir = file
                         };
                         Globals.EnginesList.Add(engine_entry);
@@ -252,7 +517,7 @@ namespace Doom_Launcher_Project
             {
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Nickname = "", Engine_Dir = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
                 //MessageBox.Show("No configuration file found. A new one has been created. Please add engine files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -266,11 +531,29 @@ namespace Doom_Launcher_Project
                 self.engines_list?.Items.Clear();
                 string json = File.ReadAllText(Globals.engine_config_path);
                 Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
+
+                // Repair legacy entries whose nickname is actually a directory path (a past bug),
+                // regenerating it from the executable's file version metadata instead.
+                bool repairedNicknames = false;
                 foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
                 {
-                    if (!string.IsNullOrEmpty(engine_file.Engine_Name) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
+                    if (!string.IsNullOrEmpty(engine_file.Engine_Dir) &&
+                        (string.IsNullOrEmpty(engine_file.Engine_Nickname) ||
+                         engine_file.Engine_Nickname.Contains(Path.DirectorySeparatorChar) ||
+                         engine_file.Engine_Nickname.Contains(Path.AltDirectorySeparatorChar)))
                     {
-                        string display = engine_file.Engine_Name + " [" + engine_file.Engine_Dir + "]";
+                        engine_file.Engine_Nickname = BuildDefaultNickname(engine_file.Engine_Dir);
+                        repairedNicknames = true;
+                    }
+                }
+                if (repairedNicknames)
+                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
+
+                foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
+                {
+                    if (!string.IsNullOrEmpty(engine_file.Engine_Nickname) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
+                    {
+                        string display = engine_file.Engine_Nickname + " [" + engine_file.Engine_Dir + "]";
                         if (!string.IsNullOrEmpty(engine_file.Engine_Config))
                             display += " (cfg: " + Path.GetFileName(engine_file.Engine_Config) + ")";
                         self.engines_list?.Items.Add(display);
@@ -289,7 +572,7 @@ namespace Doom_Launcher_Project
                 //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = ""}
+                    new Globals.EnginesListStructure {Engine_Nickname = "", Engine_Dir = ""}
                 };
                 File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
             }
@@ -334,7 +617,7 @@ namespace Doom_Launcher_Project
             Form dialog = new Form()
             {
                 Width = 560, Height = 360, FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = $"Edit Engine: {engine.Engine_Name}", StartPosition = FormStartPosition.CenterParent,
+                Text = $"Edit Engine: {engine.Engine_Nickname}", StartPosition = FormStartPosition.CenterParent,
                 MaximizeBox = false, MinimizeBox = false
             };
 
@@ -377,16 +660,13 @@ namespace Doom_Launcher_Project
                 if (ofd.ShowDialog() == DialogResult.OK)
                     configBox.Text = ofd.FileName;
             };
-            Button clearConfigBtn = new Button() { Text = "Clear", Left = 10, Top = 215, Width = 80 };
-            clearConfigBtn.Click += (s, e) => configBox.Text = string.Empty;
-
             Button okBtn = new Button() { Text = "OK", Left = 360, Top = 285, Width = 80, DialogResult = DialogResult.OK };
             Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 285, Width = 80, DialogResult = DialogResult.Cancel };
 
             dialog.Controls.AddRange(new Control[] {
                 nicknameLabel, nicknameBox,
                 dirLabel, dirBox, browseExeBtn,
-                configLabel, configBox, browseConfigBtn, clearConfigBtn,
+                configLabel, configBox, browseConfigBtn,
                 okBtn, cancelBtn
             });
             dialog.AcceptButton = okBtn;
@@ -794,36 +1074,21 @@ namespace Doom_Launcher_Project
                     return;
                 }
 
-                // Scan the WAD binary for map lump names to determine episode format
-                byte[] wadBytes = File.ReadAllBytes(wadPath);
-                string wadContent = System.Text.Encoding.Latin1.GetString(wadBytes);
+                // Pull the actual level lumps present in this WAD (cached after the first scan)
+                // instead of dumping a hardcoded list of every possible Doom 1/2 map.
+                List<string> levels = WadLevelDatabase.GetLevels(wadPath);
 
-                bool hasE1M1 = wadContent.Contains("E1M1");
-                bool hasMAP01 = wadContent.Contains("MAP01");
-
-                if (hasE1M1 && !hasMAP01)
+                if (self.map_selection != null)
                 {
-                    if (self.map_selection != null)
+                    self.map_selection.Items.Clear();
+                    if (levels.Count > 0)
                     {
-                        self.map_selection.Items.Clear();
-                        foreach (string map in Globals.doom_1_maps)
-                            self.map_selection.Items.Add(map);
-                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
+                        self.map_selection.Items.Add("(Default)");
+                        foreach (string level in levels)
+                            self.map_selection.Items.Add(level);
+                        self.map_selection.SelectedIndex = 0;
                     }
-                }
-                else if (hasMAP01)
-                {
-                    if (self.map_selection != null)
-                    {
-                        self.map_selection.Items.Clear();
-                        foreach (string map in Globals.doom_2_maps)
-                            self.map_selection.Items.Add(map);
-                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
-                    }
-                }
-                else
-                {
-                    self.map_selection?.Items.Clear();
+                    // No ExMy/MAPxy lumps found: leave the list empty silently, no popup.
                 }
             }
             else
@@ -951,243 +1216,7 @@ namespace Doom_Launcher_Project
                 }
                 if (self.map_selection?.SelectedItem != null)
                 {
-                    switch (self.map_selection.SelectedItem.ToString())
-                    {
-                        case "(Default)":
-                            selected_map = "";
-                            break;
-                        case "E1M1":
-                            selected_map = " -warp 1 1";
-                            break;
-                        case "E1M2":
-                            selected_map = " -warp 1 2";
-                            break;
-                        case "E1M3":
-                            selected_map = " -warp 1 3";
-                            break;
-                        case "E1M4":
-                            selected_map = " -warp 1 4";
-                            break;
-                        case "E1M5":
-                            selected_map = " -warp 1 5";
-                            break;
-                        case "E1M6":
-                            selected_map = " -warp 1 6";
-                            break;
-                        case "E1M7":
-                            selected_map = " -warp 1 7";
-                            break;
-                        case "E1M8":
-                            selected_map = " -warp 1 8";
-                            break;
-                        case "E1M9":
-                            selected_map = " -warp 1 9";
-                            break;
-                        case "E2M1":
-                            selected_map = " -warp 2 1";
-                            break;
-                        case "E2M2":
-                            selected_map = " -warp 2 2";
-                            break;
-                        case "E2M3":
-                            selected_map = " -warp 2 3";
-                            break;
-                        case "E2M4":
-                            selected_map = " -warp 2 4";
-                            break;
-                        case "E2M5":
-                            selected_map = " -warp 2 5";
-                            break;
-                        case "E2M6":
-                            selected_map = " -warp 2 6";
-                            break;
-                        case "E2M7":
-                            selected_map = " -warp 2 7";
-                            break;
-                        case "E2M8":
-                            selected_map = " -warp 2 8";
-                            break;
-                        case "E2M9":
-                            selected_map = " -warp 2 9";
-                            break;
-                        case "E3M1":
-                            selected_map = " -warp 3 1";
-                            break;
-                        case "E3M2":
-                            selected_map = " -warp 3 2";
-                            break;
-                        case "E3M3":
-                            selected_map = " -warp 3 3";
-                            break;
-                        case "E3M4":
-                            selected_map = " -warp 3 4";
-                            break;
-                        case "E3M5":
-                            selected_map = " -warp 3 5";
-                            break;
-                        case "E3M6":
-                            selected_map = " -warp 3 6";
-                            break;
-                        case "E3M7":
-                            selected_map = " -warp 3 7";
-                            break;
-                        case "E3M8":
-                            selected_map = " -warp 3 8";
-                            break;
-                        case "E3M9":
-                            selected_map = " -warp 3 9";
-                            break;
-                        case "E4M1":
-                            selected_map = " -warp 4 1";
-                            break;
-                        case "E4M2":
-                            selected_map = " -warp 4 2";
-                            break;
-                        case "E4M3":
-                            selected_map = " -warp 4 3";
-                            break;
-                        case "E4M4":
-                            selected_map = " -warp 4 4";
-                            break;
-                        case "E4M5":
-                            selected_map = " -warp 4 5";
-                            break;
-                        case "E4M6":
-                            selected_map = " -warp 4 6";
-                            break;
-                        case "E4M7":
-                            selected_map = " -warp 4 7";
-                            break;
-                        case "E4M8":
-                            selected_map = " -warp 4 8";
-                            break;
-                        case "E4M9":
-                            selected_map = " -warp 4 9";
-                            break;
-                        case "MAP01":
-                            selected_map = " -warp 01";
-                            break;
-                        case "MAP02":
-                            selected_map = " -warp 02";
-                            break;
-                        case "MAP03":
-                            selected_map = " -warp 03";
-                            break;
-                        case "MAP04":
-                            selected_map = " -warp 04";
-                            break;
-                        case "MAP05":
-                            selected_map = " -warp 05";
-                            break;
-                        case "MAP06":
-                            selected_map = " -warp 06";
-                            break;
-                        case "MAP07":
-                            selected_map = " -warp 07";
-                            break;
-                        case "MAP08":
-                            selected_map = " -warp 08";
-                            break;
-                        case "MAP09":
-                            selected_map = " -warp 09";
-                            break;
-                        case "MAP10":
-                            selected_map = " -warp 10";
-                            break;
-                        case "MAP11":
-                            selected_map = " -warp 11";
-                            break;
-                        case "MAP12":
-                            selected_map = " -warp 12";
-                            break;
-                        case "MAP13":
-                            selected_map = " -warp 13";
-                            break;
-                        case "MAP14":
-                            selected_map = " -warp 14";
-                            break;
-                        case "MAP15":
-                            selected_map = " -warp 15";
-                            break;
-                        case "MAP16":
-                            selected_map = " -warp 16";
-                            break;
-                        case "MAP17":
-                            selected_map = " -warp 17";
-                            break;
-                        case "MAP18":
-                            selected_map = " -warp 18";
-                            break;
-                        case "MAP19":
-                            selected_map = " -warp 19";
-                            break;
-                        case "MAP20":
-                            selected_map = " -warp 20";
-                            break;
-                        case "MAP21":
-                            selected_map = " -warp 21";
-                            break;
-                        case "MAP22":
-                            selected_map = " -warp 22";
-                            break;
-                        case "MAP23":
-                            selected_map = " -warp 23";
-                            break;
-                        case "MAP24":
-                            selected_map = " -warp 24";
-                            break;
-                        case "MAP25":
-                            selected_map = " -warp 25";
-                            break;
-                        case "MAP26":
-                            selected_map = " -warp 26";
-                            break;
-                        case "MAP27":
-                            selected_map = " -warp 27";
-                            break;
-                        case "MAP28":
-                            selected_map = " -warp 28";
-                            break;
-                        case "MAP29":
-                            selected_map = " -warp 29";
-                            break;
-                        case "MAP30":
-                            selected_map = " -warp 30";
-                            break;
-                        case "MAP31":
-                            selected_map = " -warp 31";
-                            break;
-                        case "MAP32":
-                            selected_map = " -warp 32";
-                            break;
-                        case "MAP33":
-                            selected_map = " -warp 33";
-                            break;
-                        case "MAP34":
-                            selected_map = " -warp 34";
-                            break;
-                        case "MAP35":
-                            selected_map = " -warp 35";
-                            break;
-                        case "MAP36":
-                            selected_map = " -warp 36";
-                            break;
-                        case "MAP37":
-                            selected_map = " -warp 37";
-                            break;
-                        case "MAP38":
-                            selected_map = " -warp 38";
-                            break;
-                        case "MAP39":
-                            selected_map = " -warp 39";
-                            break;
-                        case "MAP40":
-                            selected_map = " -warp 40";
-                            break;
-                        default:
-                            self.map_selection.SelectedIndex = self.map_selection.Items.IndexOf("(Default)");
-                            break;
-                    }
+                    selected_map = BuildWarpArgument(self.map_selection.SelectedItem.ToString());
                 }
                 
                 //online game options
@@ -1311,6 +1340,24 @@ namespace Doom_Launcher_Project
                 Globals.game_launch_arguments = arguments;
                 Globals.game_launch_command = $"{selected_engine} {arguments}";
             }
+        }
+
+        // Turns a dynamically-discovered level lump name (ExMy/MAPxy) into the engine's
+        // -warp argument, instead of looking it up in a hardcoded table.
+        private string BuildWarpArgument(string? mapName)
+        {
+            if (string.IsNullOrEmpty(mapName) || mapName == "(Default)")
+                return string.Empty;
+
+            Match episodeMap = Regex.Match(mapName, "^E([0-9])M([0-9])$");
+            if (episodeMap.Success)
+                return $" -warp {episodeMap.Groups[1].Value} {episodeMap.Groups[2].Value}";
+
+            Match mapNumber = Regex.Match(mapName, "^MAP([0-9]{2})$");
+            if (mapNumber.Success)
+                return $" -warp {mapNumber.Groups[1].Value}";
+
+            return string.Empty;
         }
 
         public void PlayGame(Launcher_Window self)
