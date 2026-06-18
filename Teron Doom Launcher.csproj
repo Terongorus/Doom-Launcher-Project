@@ -18,7 +18,7 @@
     <Description>DooM launcher for GZDooM and ZDooM and other ports of the original DooM engine</Description>
     <Copyright>Copyright © 2025</Copyright>
     <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <Platforms>AnyCPU;x64;x86</Platforms>
+    <Platforms>x64;x86</Platforms>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
