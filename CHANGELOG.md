@@ -2,6 +2,12 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.7.0] - 2026-06-19
+
+### New Features
+
+- **First-launch auto-scan** (#14) — when the launcher starts with a completely empty configuration (no WADs and no engines added yet), it now scans common install locations (Program Files, Program Files (x86), Desktop, Downloads, Documents, and any detected Steam library folders) for DOOM IWAD files and known engine executables (GZDoom, ZDoom, LZDoom, DOOM Retro, Crispy Doom, Chocolate Doom, Eternity, PrBoom+, Woof, DSDA-Doom, Zandronum, Odamex, Boom) and adds whatever it finds automatically. A progress dialog shows while it runs, with a "Run in Background" option to keep using the launcher while the scan continues. The scan never runs if any WAD or engine entry already exists, so it can't overwrite anything added manually.
+
 ## [1.6.1] - 2026-06-18
 
 ### Bug Fixes

@@ -538,8 +538,9 @@ namespace Doom_Launcher_Project
     public class Engine_Options
     {
         // Builds a default nickname from the executable's own file version metadata
-        // (e.g. "gzdoom-4.11.0") instead of guessing from the file path.
-        private static string BuildDefaultNickname(string file)
+        // (e.g. "gzdoom-4.11.0") instead of guessing from the file path. Internal so
+        // AutoScan_Options can reuse it for engines it discovers on first launch.
+        internal static string BuildDefaultNickname(string file)
         {
             string baseName = Path.GetFileNameWithoutExtension(file);
             try
@@ -750,6 +751,238 @@ namespace Doom_Launcher_Project
                 ConfigStore.SaveAll();
                 this.Load_Engines(self);
             }
+        }
+    }
+
+    // Scans common install locations for DOOM IWADs and known engine executables the
+    // first time the launcher runs with a completely empty configuration, so the user
+    // isn't staring at empty lists. Never runs if the user (or migration) already has
+    // any WAD or engine entries, so it can never overwrite manual additions.
+    public class AutoScan_Options
+    {
+        private static readonly HashSet<string> KnownEngineExeNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "gzdoom.exe", "zdoom.exe", "lzdoom.exe", "doomretro.exe", "crispy-doom.exe",
+            "chocolate-doom.exe", "eternity.exe", "prboom-plus.exe", "woof.exe",
+            "dsda-doom.exe", "zandronum.exe", "odamex.exe", "boom.exe"
+        };
+
+        private const int MaxScanDepth = 6;
+
+        public void RunFirstLaunchScanIfNeeded(Launcher_Window self)
+        {
+            ConfigStore.LoadAll();
+            if (Globals.WADList.Count > 0 || Globals.EnginesList.Count > 0)
+                return;
+
+            List<string> scanRoots = GetScanRoots();
+
+            Form progressDialog = new Form()
+            {
+                Width = 480, Height = 170, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = "Scanning for WADs and Engines", StartPosition = FormStartPosition.CenterScreen,
+                MaximizeBox = false, MinimizeBox = false, ControlBox = false
+            };
+            Label statusLabel = new Label()
+            {
+                Left = 15, Top = 15, Width = 450, Height = 60,
+                Text = "Scanning common install locations for DOOM WAD files and engine executables..."
+            };
+            ProgressBar progressBar = new ProgressBar() { Left = 15, Top = 80, Width = 450, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
+            Button backgroundBtn = new Button() { Text = "Run in Background", Left = 290, Top = 110, Width = 175 };
+            progressDialog.Controls.AddRange(new Control[] { statusLabel, progressBar, backgroundBtn });
+
+            // Lets the user dismiss the modal dialog and keep using the launcher while
+            // the scan keeps running; results still land via self.BeginInvoke when done.
+            backgroundBtn.Click += (s, e) => progressDialog.Close();
+
+            void ReportProgress(string path)
+            {
+                try
+                {
+                    if (!progressDialog.IsDisposed)
+                        progressDialog.BeginInvoke(new Action(() =>
+                        {
+                            if (!progressDialog.IsDisposed)
+                                statusLabel.Text = $"Scanning: {path}";
+                        }));
+                }
+                catch (ObjectDisposedException) { /* dialog was dismissed mid-scan */ }
+                catch (InvalidOperationException) { /* handle not ready yet */ }
+            }
+
+            progressDialog.Shown += (s, e) =>
+            {
+                Task.Run(() =>
+                {
+                    List<Globals.WADListStructure> foundWads = new();
+                    List<Globals.EnginesListStructure> foundEngines = new();
+
+                    foreach (string root in scanRoots)
+                    {
+                        if (!Directory.Exists(root))
+                            continue;
+                        ReportProgress(root);
+                        ScanDirectory(root, 0, foundWads, foundEngines);
+                    }
+
+                    try
+                    {
+                        if (!progressDialog.IsDisposed)
+                            progressDialog.BeginInvoke(new Action(() =>
+                            {
+                                if (!progressDialog.IsDisposed)
+                                    progressDialog.Close();
+                            }));
+                    }
+                    catch { /* dialog already gone */ }
+
+                    self.BeginInvoke(new Action(() => ApplyResults(self, foundWads, foundEngines)));
+                });
+            };
+
+            progressDialog.ShowDialog(self);
+        }
+
+        private void ApplyResults(Launcher_Window self, List<Globals.WADListStructure> foundWads, List<Globals.EnginesListStructure> foundEngines)
+        {
+            if (foundWads.Count == 0 && foundEngines.Count == 0)
+            {
+                MessageBox.Show(self,
+                    "No DOOM WAD files or known engine executables were found automatically in common install locations. You can add them manually using the + buttons on the Launcher Options tab.",
+                    "First-Launch Scan", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            foreach (Globals.WADListStructure wad in foundWads)
+                Globals.WADList.Add(wad);
+            foreach (Globals.EnginesListStructure engine in foundEngines)
+                Globals.EnginesList.Add(engine);
+            ConfigStore.SaveAll();
+
+            WAD_Options wad_options = new WAD_Options();
+            wad_options.Load_WADs(self);
+            Engine_Options engine_options = new Engine_Options();
+            engine_options.Load_Engines(self);
+
+            List<string> lines = new();
+            lines.AddRange(foundWads.Select(w => $"WAD: {w.WAD_Name}"));
+            lines.AddRange(foundEngines.Select(en => $"Engine: {en.Engine_Nickname}"));
+
+            MessageBox.Show(self,
+                $"First-launch scan found {foundWads.Count} WAD(s) and {foundEngines.Count} engine(s) in common install locations and added them automatically:\n\n{string.Join("\n", lines)}",
+                "First-Launch Scan", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private List<string> GetScanRoots()
+        {
+            List<string> roots = new();
+            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string downloads = Path.Combine(userProfile, "Downloads");
+
+            if (!string.IsNullOrEmpty(programFiles)) roots.Add(programFiles);
+            if (!string.IsNullOrEmpty(programFilesX86)) roots.Add(programFilesX86);
+            if (Directory.Exists(desktop)) roots.Add(desktop);
+            if (Directory.Exists(downloads)) roots.Add(downloads);
+            if (Directory.Exists(documents)) roots.Add(documents);
+
+            roots.AddRange(GetSteamLibraryRoots(programFiles, programFilesX86));
+
+            return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        // Steam installs aren't under Program Files by default convention alone - additional
+        // library drives are recorded in steamapps/libraryfolders.vdf, a simple quoted
+        // key-value text format, so a light regex scrape is enough without a full VDF parser.
+        private List<string> GetSteamLibraryRoots(string programFiles, string programFilesX86)
+        {
+            List<string> steamCommonDirs = new();
+            List<string> steamInstallCandidates = new();
+            if (!string.IsNullOrEmpty(programFilesX86)) steamInstallCandidates.Add(Path.Combine(programFilesX86, "Steam"));
+            if (!string.IsNullOrEmpty(programFiles)) steamInstallCandidates.Add(Path.Combine(programFiles, "Steam"));
+
+            foreach (string steamDir in steamInstallCandidates)
+            {
+                string commonDir = Path.Combine(steamDir, "steamapps", "common");
+                if (Directory.Exists(commonDir))
+                    steamCommonDirs.Add(commonDir);
+
+                string libraryVdf = Path.Combine(steamDir, "steamapps", "libraryfolders.vdf");
+                if (File.Exists(libraryVdf))
+                {
+                    try
+                    {
+                        string content = File.ReadAllText(libraryVdf);
+                        foreach (Match match in Regex.Matches(content, "\"path\"\\s*\"([^\"]+)\""))
+                        {
+                            string libPath = match.Groups[1].Value.Replace("\\\\", "\\");
+                            string libCommon = Path.Combine(libPath, "steamapps", "common");
+                            if (Directory.Exists(libCommon))
+                                steamCommonDirs.Add(libCommon);
+                        }
+                    }
+                    catch { /* malformed/unreadable vdf - skip Steam library detection */ }
+                }
+            }
+            return steamCommonDirs;
+        }
+
+        // Manual recursion (rather than SearchOption.AllDirectories) so a single
+        // access-denied subfolder just gets skipped instead of aborting the whole scan.
+        private void ScanDirectory(string dir, int depth, List<Globals.WADListStructure> foundWads, List<Globals.EnginesListStructure> foundEngines)
+        {
+            if (depth > MaxScanDepth)
+                return;
+
+            string[] files;
+            try { files = Directory.GetFiles(dir); }
+            catch { return; }
+
+            foreach (string file in files)
+            {
+                string ext = Path.GetExtension(file);
+                string name = Path.GetFileName(file);
+
+                if (ext.Equals(".wad", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (Globals.WADList.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                        foundWads.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    // Only IWADs (actual game files) get auto-added - PWADs/mods are out of scope.
+                    if (WadBinaryUtils.ReadWadIdentification(file) == "IWAD")
+                    {
+                        foundWads.Add(new Globals.WADListStructure
+                        {
+                            WAD_Name = Path.GetFileNameWithoutExtension(file),
+                            WAD_Dir = file
+                        });
+                    }
+                }
+                else if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) && KnownEngineExeNames.Contains(name))
+                {
+                    if (Globals.EnginesList.Any(en => en.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                        foundEngines.Any(en => en.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    foundEngines.Add(new Globals.EnginesListStructure
+                    {
+                        Engine_Nickname = Engine_Options.BuildDefaultNickname(file),
+                        Engine_Dir = file
+                    });
+                }
+            }
+
+            string[] subDirs;
+            try { subDirs = Directory.GetDirectories(dir); }
+            catch { return; }
+
+            foreach (string subDir in subDirs)
+                ScanDirectory(subDir, depth + 1, foundWads, foundEngines);
         }
     }
 
