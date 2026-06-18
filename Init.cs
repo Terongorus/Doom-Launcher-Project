@@ -111,6 +111,7 @@ namespace Doom_Launcher_Project
             public string Selected_TimeLimit { get; set; } = string.Empty;
             public string Selected_DMFlags { get; set; } = string.Empty;
             public string Selected_DMFlags2 { get; set; } = string.Empty;
+            public string Additional_Parameters { get; set; } = string.Empty;
         }
 
         //creates a template of a cached WAD level-lump scan result

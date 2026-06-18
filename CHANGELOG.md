@@ -2,6 +2,16 @@
 
 All notable changes to Teron's Doom Launcher are documented in this file.
 
+## [1.6.0] - 2026-06-18
+
+### New Features
+
+- **Additional command-line parameters** (#8) — the Game Options tab now has an "Additional parameters" field, saved per profile and appended verbatim to the end of the generated launch command (e.g. `-loadgame example.zds`), so any engine flag not already exposed by the UI can still be used.
+
+### Improvements
+
+- Gave the main window more baseline height and put a fixed-height reservation under the tabs for the command line/Play row, so the bottom of the Game Options tab no longer crowds the generated command line preview.
+
 ## [1.5.0] - 2026-06-18
 
 ### New Features

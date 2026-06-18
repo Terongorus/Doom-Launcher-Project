@@ -851,7 +851,8 @@ namespace Doom_Launcher_Project
                 Selected_FragLimit = self.frag_limit?.Text ?? string.Empty,
                 Selected_TimeLimit = self.time_limit?.Text ?? string.Empty,
                 Selected_DMFlags = self.dmflags?.Text ?? string.Empty,
-                Selected_DMFlags2 = self.dmflags2?.Text ?? string.Empty
+                Selected_DMFlags2 = self.dmflags2?.Text ?? string.Empty,
+                Additional_Parameters = self.additional_parameters_textbox?.Text ?? string.Empty
             };
         }
 
@@ -1027,6 +1028,7 @@ namespace Doom_Launcher_Project
                     if (self.time_limit != null) self.time_limit.Text = config.Selected_TimeLimit;
                     if (self.dmflags != null) self.dmflags.Text = config.Selected_DMFlags;
                     if (self.dmflags2 != null) self.dmflags2.Text = config.Selected_DMFlags2;
+                    if (self.additional_parameters_textbox != null) self.additional_parameters_textbox.Text = config.Additional_Parameters;
 
                     if (!string.IsNullOrEmpty(config.Selected_SkillLevel))
                     {
@@ -1170,6 +1172,7 @@ namespace Doom_Launcher_Project
                 string selected_time_limit = string.Empty;
                 string selected_dmflags = string.Empty;
                 string selected_dmflags2 = string.Empty;
+                string selected_additional_parameters = string.Empty;
 
                 //check if an engine, mods and a wads are selected
                 if (self.engine_selection?.SelectedItem != null)
@@ -1253,7 +1256,10 @@ namespace Doom_Launcher_Project
                 {
                     selected_map = BuildWarpArgument(self.map_selection.SelectedItem.ToString());
                 }
-                
+
+                if (!string.IsNullOrWhiteSpace(self.additional_parameters_textbox?.Text))
+                    selected_additional_parameters = " " + self.additional_parameters_textbox.Text;
+
                 //online game options
                 if (self.enable_multiplayer?.Checked == true)
                 {
@@ -1368,7 +1374,7 @@ namespace Doom_Launcher_Project
                 }
 
                 //build the play command
-                arguments = $"{selected_config + selected_wad + selected_difficulty + selected_map + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit}";
+                arguments = $"{selected_config + selected_wad + selected_difficulty + selected_map + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit + selected_additional_parameters}";
                 self.command_line_view.Text = $"{selected_engine} {arguments}";
                 //load the command line to globals for launching the game
                 Globals.game_launch_engine = selected_engine;

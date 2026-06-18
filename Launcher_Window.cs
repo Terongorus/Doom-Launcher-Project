@@ -281,5 +281,10 @@
         {
             SyncConfig();
         }
+
+        private void additional_parameters_textbox_TextChanged(object sender, EventArgs e)
+        {
+            SyncConfig();
+        }
     }
 }
