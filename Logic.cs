@@ -1,274 +1,651 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
+using Microsoft.VisualBasic.ApplicationServices;
+using System.Reflection;
 
 namespace Doom_Launcher_Project
 {
+    // Parses the raw WAD binary format (header + lump directory) instead of matching
+    // against hardcoded filename/lump lists.
+    public static class WadBinaryUtils
+    {
+        private static readonly Regex ExMyLumpPattern = new Regex(@"^E[0-9]M[0-9]$", RegexOptions.Compiled);
+        private static readonly Regex MapxyLumpPattern = new Regex(@"^MAP[0-9]{2}$", RegexOptions.Compiled);
+
+        // Reads the 4-byte "IWAD"/"PWAD" signature from the start of a WAD file.
+        public static string ReadWadIdentification(string path)
+        {
+            try
+            {
+                using FileStream fs = File.OpenRead(path);
+                byte[] header = new byte[4];
+                if (fs.Read(header, 0, 4) != 4) return string.Empty;
+                return System.Text.Encoding.ASCII.GetString(header);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        // Walks the WAD's lump directory and returns every ExMy/MAPxy level marker lump
+        // found, in directory order, deduplicated.
+        public static List<string> ScanLevelLumps(string path)
+        {
+            List<string> levels = new List<string>();
+            try
+            {
+                using FileStream fs = File.OpenRead(path);
+                using BinaryReader reader = new BinaryReader(fs);
+                if (fs.Length < 12) return levels;
+
+                string identification = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(4));
+                if (identification != "IWAD" && identification != "PWAD") return levels;
+
+                int numLumps = reader.ReadInt32();
+                int dirOffset = reader.ReadInt32();
+                if (numLumps <= 0 || dirOffset < 0 || dirOffset + (long)numLumps * 16 > fs.Length) return levels;
+
+                fs.Seek(dirOffset, SeekOrigin.Begin);
+                for (int i = 0; i < numLumps; i++)
+                {
+                    reader.ReadInt32(); // lump data offset, unused for level detection
+                    reader.ReadInt32(); // lump size, unused for level detection
+                    string name = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(8)).TrimEnd('\0').ToUpperInvariant();
+
+                    if ((ExMyLumpPattern.IsMatch(name) || MapxyLumpPattern.IsMatch(name)) && !levels.Contains(name))
+                        levels.Add(name);
+                }
+            }
+            catch
+            {
+                return new List<string>();
+            }
+            return levels;
+        }
+    }
+
+    // Caches the level lumps found in each WAD so a given file only needs to be
+    // binary-scanned once. Backed by Globals.Config.Configuration.WADLevelsCache
+    // (part of the single combined config file) rather than its own file.
+    public static class WadLevelDatabase
+    {
+        public static List<string> GetLevels(string wadPath)
+        {
+            string key = Path.GetFullPath(wadPath);
+            List<Globals.WadLevelsCacheEntry> cache = Globals.Config.Configuration.WADLevelsCache;
+
+            Globals.WadLevelsCacheEntry? existing = cache.FirstOrDefault(e => string.Equals(e.WAD_Path, key, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+                return existing.Levels;
+
+            List<string> levels = WadBinaryUtils.ScanLevelLumps(wadPath);
+            levels.Sort((a, b) => GetSortKey(a).CompareTo(GetSortKey(b)));
+
+            cache.Add(new Globals.WadLevelsCacheEntry { WAD_Path = key, Levels = levels });
+            ConfigStore.SaveAll();
+            return levels;
+        }
+
+        private static int GetSortKey(string name)
+        {
+            if (name.Length == 4 && name[0] == 'E' && name[2] == 'M')
+                return (name[1] - '0') * 10 + (name[3] - '0');
+            if (name.Length == 5 && name.StartsWith("MAP"))
+                return 1000 + int.Parse(name.Substring(3, 2));
+            return int.MaxValue;
+        }
+    }
+
+    // Centralizes all reads/writes of the single combined launcher_config.json file
+    // that replaces the formerly separate engine/wad/mods/game/wad-levels files.
+    public static class ConfigStore
+    {
+        public static void LoadAll()
+        {
+            if (!File.Exists(Globals.launcher_config_path))
+                MigrateLegacyFiles();
+
+            string json = File.Exists(Globals.launcher_config_path) ? File.ReadAllText(Globals.launcher_config_path) : string.Empty;
+            Globals.Config = string.IsNullOrWhiteSpace(json)
+                ? new Globals.RootConfig()
+                : JsonSerializer.Deserialize<Globals.RootConfig>(json, Globals.JsonOptions) ?? new Globals.RootConfig();
+
+            Globals.EnginesList = Globals.Config.Configuration.Engines;
+            Globals.WADList = Globals.Config.Configuration.WADs;
+            Globals.ModsList = Globals.Config.Configuration.Mods;
+        }
+
+        public static void SaveAll()
+        {
+            // Re-sync in case a caller replaced the list reference wholesale instead of mutating in place.
+            Globals.Config.Configuration.Engines = Globals.EnginesList;
+            Globals.Config.Configuration.WADs = Globals.WADList;
+            Globals.Config.Configuration.Mods = Globals.ModsList;
+
+            AssignSequentialIds(Globals.Config.Configuration.Engines, (e, id) => e.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.WADs, (w, id) => w.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.Mods, (m, id) => m.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.Profiles.Entries, (p, id) => p.Id = id);
+            AssignSequentialIds(Globals.Config.Configuration.WADLevelsCache, (c, id) => c.Id = id);
+
+            File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(Globals.Config, Globals.JsonOptions));
+        }
+
+        private static void AssignSequentialIds<T>(IList<T> entries, Action<T, int> setId)
+        {
+            for (int i = 0; i < entries.Count; i++)
+                setId(entries[i], i + 1);
+        }
+
+        // Runs at most once: imports the legacy per-feature files into the new combined
+        // file the first time launcher_config_path is missing. Old files are left on disk untouched.
+        private static void MigrateLegacyFiles()
+        {
+            Globals.RootConfig root = new Globals.RootConfig();
+
+            if (File.Exists(Globals.legacy_engine_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_engine_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.Engines = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_wad_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_wad_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.WADs = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_mods_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_mods_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                    root.Configuration.Mods = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json) ?? new();
+            }
+
+            if (File.Exists(Globals.legacy_game_config_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_game_config_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    LegacyGameConfig? legacy = JsonSerializer.Deserialize<LegacyGameConfig>(json);
+                    if (legacy != null)
+                    {
+                        root.Configuration.Profiles.LastSelectedProfile = legacy.LastSelectedProfile;
+                        foreach (KeyValuePair<string, Globals.GameConfigStructure> kvp in legacy.Configuration)
+                        {
+                            kvp.Value.Name = kvp.Key;
+                            root.Configuration.Profiles.Entries.Add(kvp.Value);
+                        }
+                    }
+                }
+            }
+
+            if (File.Exists(Globals.legacy_wad_levels_db_path))
+            {
+                string json = File.ReadAllText(Globals.legacy_wad_levels_db_path);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    Dictionary<string, List<string>>? legacyCache = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
+                    if (legacyCache != null)
+                    {
+                        foreach (KeyValuePair<string, List<string>> kvp in legacyCache)
+                            root.Configuration.WADLevelsCache.Add(new Globals.WadLevelsCacheEntry { WAD_Path = kvp.Key, Levels = kvp.Value });
+                    }
+                }
+            }
+
+            AssignSequentialIds(root.Configuration.Engines, (e, id) => e.Id = id);
+            AssignSequentialIds(root.Configuration.WADs, (w, id) => w.Id = id);
+            AssignSequentialIds(root.Configuration.Mods, (m, id) => m.Id = id);
+            AssignSequentialIds(root.Configuration.Profiles.Entries, (p, id) => p.Id = id);
+            AssignSequentialIds(root.Configuration.WADLevelsCache, (c, id) => c.Id = id);
+
+            File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(root, Globals.JsonOptions));
+        }
+
+        // Mirrors the legacy game_config.json shape (a dictionary keyed by profile name),
+        // used only to read that one file during migration.
+        private class LegacyGameConfig
+        {
+            [JsonPropertyName("CONFIGURATION")]
+            public Dictionary<string, Globals.GameConfigStructure> Configuration { get; set; } = new();
+            public string LastSelectedProfile { get; set; } = "Default";
+        }
+    }
+
+    // Persists/restores the main window's position, size, and maximized state across runs.
+    public class Window_Options
+    {
+        public void LoadWindowSettings(Launcher_Window self)
+        {
+            ConfigStore.LoadAll();
+
+            Globals.WindowSettings window = Globals.Config.Configuration.Window;
+            if (window.Width <= 0 || window.Height <= 0)
+                return;
+
+            Rectangle savedBounds = new Rectangle(window.X, window.Y, window.Width, window.Height);
+            bool onScreen = false;
+            foreach (Screen screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(savedBounds))
+                {
+                    onScreen = true;
+                    break;
+                }
+            }
+            if (!onScreen)
+                return;
+
+            self.StartPosition = FormStartPosition.Manual;
+            self.Location = new Point(window.X, window.Y);
+            self.Size = new Size(window.Width, window.Height);
+            if (window.Maximized)
+                self.WindowState = FormWindowState.Maximized;
+        }
+
+        public void SaveWindowSettings(Launcher_Window self)
+        {
+            ConfigStore.LoadAll();
+
+            bool maximized = self.WindowState == FormWindowState.Maximized;
+            Rectangle bounds = self.WindowState == FormWindowState.Normal ? self.Bounds : self.RestoreBounds;
+
+            Globals.WindowSettings window = Globals.Config.Configuration.Window;
+            window.X = bounds.X;
+            window.Y = bounds.Y;
+            window.Width = bounds.Width;
+            window.Height = bounds.Height;
+            window.Maximized = maximized;
+
+            ConfigStore.SaveAll();
+        }
+    }
+
     public class WAD_Options
     {
         public void AddWADs(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
+
+            // Drop placeholder empty entries left over from earlier bootstrapping
+            for (int i = Globals.WADList.Count - 1; i >= 0; i--)
+                if (string.IsNullOrEmpty(Globals.WADList[i].WAD_Dir) && string.IsNullOrEmpty(Globals.WADList[i].WAD_Name))
+                    Globals.WADList.RemoveAt(i);
+            for (int i = Globals.ModsList.Count - 1; i >= 0; i--)
+                if (string.IsNullOrEmpty(Globals.ModsList[i].Mod_Dir) && string.IsNullOrEmpty(Globals.ModsList[i].Mod_Name))
+                    Globals.ModsList.RemoveAt(i);
+
+            //opens a file dialog to select WAD or mod files - they get sorted automatically below
+            OpenFileDialog WADFileDialog = new OpenFileDialog
             {
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.wad_config_path)))
+                Title = "Select WAD/Mod Files",
+                Filter = "WAD/Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+
+            if (WADFileDialog.ShowDialog() != DialogResult.OK)
+            {
+                MessageBox.Show("No WAD/mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int addedWads = 0, addedMods = 0;
+            foreach (string file in WADFileDialog.FileNames)
+            {
+                if (Globals.WADList.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)) ||
+                    Globals.ModsList.Any(m => m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Globals.WADList?.Clear();
+                    continue; // Skip adding this duplicate
                 }
-                else 
+
+                // Binary-detect the WAD type rather than trusting the file extension: IWADs
+                // (main game data) go to the WAD list, PWADs and everything else (pk3/zip/etc.,
+                // which are loaded the same way as PWADs) go to the mods list.
+                if (WadBinaryUtils.ReadWadIdentification(file) == "IWAD")
                 {
-                    string json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                }
-                
-                //opens a file dialog to select WAD files
-                OpenFileDialog WADFileDialog = new OpenFileDialog
-                {
-                    Title = "Select WAD Files",
-                    Filter = "WAD Files (*.wad)|*.wad|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (WADFileDialog.ShowDialog() == DialogResult.OK && Globals.WADList != null && self.wads_list != null)
-                {
-                    foreach (string file in WADFileDialog.FileNames)
+                    Globals.WADList.Add(new Globals.WADListStructure
                     {
-                        if (Globals.WADList.Any(w => w.WAD_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue; // Skip adding this duplicate WAD
-                        }
-                        if (Globals.WADList.Any(w => w.WAD_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.WADList.Any(w => w.WAD_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.WADList.RemoveAt(0);
-                        }
-                        Globals.WADListStructure wad_entry = new Globals.WADListStructure
-                        {
-                            WAD_Name = Path.GetFileNameWithoutExtension(file),
-                            WAD_Dir = file
-                        };
-                        Globals.WADList.Add(wad_entry);
-                    }
-                    File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize((Globals.WADList)));
-                    MessageBox.Show("WAD/WADs added and configuration updated.", "WADs Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.Load_WADs(self);
+                        WAD_Name = Path.GetFileNameWithoutExtension(file),
+                        WAD_Dir = file
+                    });
+                    addedWads++;
                 }
                 else
                 {
-                    MessageBox.Show("No WAD files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    Globals.ModsList.Add(new Globals.ModsListStructure
+                    {
+                        Mod_Name = Path.GetFileNameWithoutExtension(file),
+                        Mod_Dir = file
+                    });
+                    addedMods++;
                 }
             }
-            else
+
+            if (addedWads == 0 && addedMods == 0)
             {
-                Globals.WADList = new BindingList<Globals.WADListStructure>
-                {
-                    new Globals.WADListStructure {WAD_Name = "", WAD_Dir = ""}
-                };
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add WAD files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("All selected files were already in the WAD/mod list.", "Nothing Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            ConfigStore.SaveAll();
+
+            MessageBox.Show($"{addedWads} WAD(s) and {addedMods} mod(s) added and configuration updated.", "Files Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            this.Load_WADs(self);
+            if (addedMods > 0)
+            {
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
             }
         }
 
         public void Load_WADs(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
+
+            self.wads_list?.Items.Clear();
+            foreach (Globals.WADListStructure wad_file in Globals.WADList)
             {
-                self.wads_list?.Items.Clear();
-                string json = File.ReadAllText(Globals.wad_config_path);
-                if (!string.IsNullOrWhiteSpace(json))
+                if (!string.IsNullOrEmpty(wad_file.WAD_Name) && !string.IsNullOrEmpty(wad_file.WAD_Dir))
                 {
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                    foreach (Globals.WADListStructure wad_file in Globals.WADList)
-                    {
-                        if (!string.IsNullOrEmpty(wad_file.WAD_Name) && !string.IsNullOrEmpty(wad_file.WAD_Dir))
-                        {
-                            self.wads_list?.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
-                        }
-                        else
-                        {
-                            MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check wad_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            break;
-                        }
-                    }
-                    Game_Options game_options = new Game_Options();
-                    game_options.Load_WADsToList(self);
+                    self.wads_list?.Items.Add(wad_file.WAD_Name + " [" + wad_file.WAD_Dir + "]");
                 }
                 else
                 {
-                    return;
+                    MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
                 }
             }
-            else
+
+            // wads_list lists every game file added via AddWADs (IWADs and mods alike);
+            // wad_selection/mods_selection are the ones that sort IWADs from mods.
+            foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
             {
-                //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Globals.WADList = new BindingList<Globals.WADListStructure>
-                {
-                    new Globals.WADListStructure {WAD_Name = "", WAD_Dir = ""}
-                };
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
+                if (!string.IsNullOrEmpty(mod_file.Mod_Name) && !string.IsNullOrEmpty(mod_file.Mod_Dir))
+                    self.wads_list?.Items.Add(mod_file.Mod_Name + " [" + mod_file.Mod_Dir + "]");
             }
+
+            Game_Options game_options = new Game_Options();
+            game_options.Load_WADsToList(self);
         }
 
         public void Remove_WAD(Launcher_Window self)
         {
-            if (self.wads_list?.SelectedItems.Count > 0 && Globals.WADList != null)
-            {
-                // Batch removals and save once to disk
-                var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
-                foreach (int index in selectedIndices)
-                {
-                    self.wads_list?.Items.RemoveAt(index);
-                    Globals.WADList.RemoveAt(index);
-                }
-                File.WriteAllText(Globals.wad_config_path, JsonSerializer.Serialize(Globals.WADList));
-
-                Game_Options game_options = new Game_Options();
-                game_options.Load_WADsToList(self);
-
-                MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
+            if (self.wads_list == null || self.wads_list.SelectedIndices.Count == 0)
             {
                 MessageBox.Show("No WAD/WADs selected to remove.", "Removal Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
+
+            // wads_list displays WADList entries followed by ModsList entries (see Load_WADs),
+            // so anything at or past wadCount belongs to ModsList.
+            int wadCount = Globals.WADList.Count;
+            var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
+
+            bool removedWad = false, removedMod = false;
+            foreach (int index in selectedIndices)
+            {
+                if (index < wadCount)
+                {
+                    Globals.WADList.RemoveAt(index);
+                    removedWad = true;
+                }
+                else
+                {
+                    Globals.ModsList.RemoveAt(index - wadCount);
+                    removedMod = true;
+                }
+            }
+
+            if (removedWad || removedMod)
+                ConfigStore.SaveAll();
+
+            this.Load_WADs(self);
+            if (removedMod)
+            {
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
+            }
+
+            MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public void Edit_WAD(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            if (self.wads_list?.SelectedItem == null)
             {
-                if (self.wads_list != null && self.wads_list.SelectedItems.Count <= 1)
+                MessageBox.Show("No WAD/mod selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int selectedIndex = self.wads_list.SelectedIndex;
+            int wadCount = Globals.WADList.Count;
+
+            if (selectedIndex >= 0 && selectedIndex < wadCount)
+            {
+                EditWadEntry(self, Globals.WADList[selectedIndex]);
+            }
+            else if (selectedIndex >= wadCount && selectedIndex < wadCount + Globals.ModsList.Count)
+            {
+                EditModEntry(self, Globals.ModsList[selectedIndex - wadCount]);
+            }
+        }
+
+        private void EditWadEntry(Launcher_Window self, Globals.WADListStructure wad)
+        {
+            Form dialog = new Form()
+            {
+                Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = $"Edit WAD: {wad.WAD_Name}", StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            Label nameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "WAD name:" };
+            TextBox nameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = wad.WAD_Name ?? string.Empty };
+
+            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "WAD file path:" };
+            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = wad.WAD_Dir ?? string.Empty };
+            Button browseBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            browseBtn.Click += (s, e) =>
+            {
+                using OpenFileDialog ofd = new OpenFileDialog
                 {
-                    
-                }
+                    Title = "Select WAD File",
+                    Filter = "WAD Files (*.wad)|*.wad|All Files (*.*)|*.*"
+                };
+                if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
+                if (ofd.ShowDialog() == DialogResult.OK)
+                    dirBox.Text = ofd.FileName;
+            };
+
+            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 155, Width = 80, DialogResult = DialogResult.OK };
+            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 155, Width = 80, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] { nameLabel, nameBox, dirLabel, dirBox, browseBtn, okBtn, cancelBtn });
+            dialog.AcceptButton = okBtn;
+            dialog.CancelButton = cancelBtn;
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                wad.WAD_Name = nameBox.Text.Trim();
+                wad.WAD_Dir = dirBox.Text.Trim();
+                ConfigStore.SaveAll();
+
+                this.Load_WADs(self);
+                Game_Options game_options = new Game_Options();
+                game_options.Load_WADsToList(self);
+            }
+        }
+
+        private void EditModEntry(Launcher_Window self, Globals.ModsListStructure mod)
+        {
+            Form dialog = new Form()
+            {
+                Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = $"Edit Mod: {mod.Mod_Name}", StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            Label nameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "Mod name:" };
+            TextBox nameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = mod.Mod_Name ?? string.Empty };
+
+            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "Mod file path:" };
+            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = mod.Mod_Dir ?? string.Empty };
+            Button browseBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            browseBtn.Click += (s, e) =>
+            {
+                using OpenFileDialog ofd = new OpenFileDialog
+                {
+                    Title = "Select Mod File",
+                    Filter = "Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*"
+                };
+                if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
+                if (ofd.ShowDialog() == DialogResult.OK)
+                    dirBox.Text = ofd.FileName;
+            };
+
+            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 155, Width = 80, DialogResult = DialogResult.OK };
+            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 155, Width = 80, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] { nameLabel, nameBox, dirLabel, dirBox, browseBtn, okBtn, cancelBtn });
+            dialog.AcceptButton = okBtn;
+            dialog.CancelButton = cancelBtn;
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                mod.Mod_Name = nameBox.Text.Trim();
+                mod.Mod_Dir = dirBox.Text.Trim();
+                ConfigStore.SaveAll();
+
+                this.Load_WADs(self);
+                Mods_Options mods_options = new Mods_Options();
+                mods_options.Load_Mods(self);
             }
         }
     }
 
     public class Engine_Options
     {
+        // Builds a default nickname from the executable's own file version metadata
+        // (e.g. "gzdoom-4.11.0") instead of guessing from the file path.
+        private static string BuildDefaultNickname(string file)
+        {
+            string baseName = Path.GetFileNameWithoutExtension(file);
+            try
+            {
+                FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(file);
+                string version = versionInfo.FileVersion?.Trim() ?? string.Empty;
+
+                // Some files (e.g. Windows system binaries) append build metadata after a
+                // space, like "10.0.26100.8457 (WinBuild.160101.0800)" - keep just the version.
+                int spaceIndex = version.IndexOf(' ');
+                if (spaceIndex > 0)
+                    version = version.Substring(0, spaceIndex);
+
+                // Strip a leading 'g' (GZDoom) or 'v' so we don't end up with "gzdoom-g4.11.0"
+                if (version.Length > 1 && (version[0] is 'g' or 'G' or 'v' or 'V'))
+                    version = version.Substring(1);
+
+                return string.IsNullOrEmpty(version) ? baseName : $"{baseName}-{version}";
+            }
+            catch
+            {
+                return baseName;
+            }
+        }
+
         public void AddEngines(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
-            { 
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.engine_config_path)))
-                {
-                    Globals.EnginesList?.Clear();
-                }
-                else 
-                {
-                    string json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
-                }
+            ConfigStore.LoadAll();
 
-                //opens a file dialog to select engine files
-                OpenFileDialog EngineFileDialog = new OpenFileDialog
+            //opens a file dialog to select engine files
+            OpenFileDialog EngineFileDialog = new OpenFileDialog
+            {
+                Title = "Select Engine Files",
+                Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+            if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
+            {
+                foreach (string file in EngineFileDialog.FileNames)
                 {
-                    Title = "Select Engine Files",
-                    Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
-                {
-                    foreach (string file in EngineFileDialog.FileNames)
+                    if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue; // Skip adding this duplicate engine
-                        }
-                        if (Globals.EnginesList == null) Globals.EnginesList = new BindingList<Globals.EnginesListStructure>();
-
-                        if (Globals.EnginesList.Any(e => e.Engine_Dir != null && e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || 
-                            Globals.EnginesList.Any(e => e.Engine_Name.Equals("", StringComparison.OrdinalIgnoreCase)) || 
-                            Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.EnginesList.RemoveAt(0);
-                        }
-
-                        FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(file);
-                        string version = versionInfo.FileVersion?.Trim() ?? "Unknown";
-
-                        // Normalize version: Strip leading 'g' (GZDoom) or 'v' to avoid "vg" or "vv" in the UI
-                        if (version.Length > 1 && (version.StartsWith("g", StringComparison.OrdinalIgnoreCase) || version.StartsWith("v", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            version = version.Substring(1);
-                        }
-
-                        Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
-                        {
-                            Engine_Name = Path.GetFileNameWithoutExtension(file),
-                            Engine_Nickname = $"{Path.GetFileNameWithoutExtension(file)} v{version}",
-                            Engine_Dir = file,
-                            Engine_Version = version
-                        };
-                        Globals.EnginesList.Add(engine_entry);
+                        continue; // Skip adding this duplicate engine
                     }
-                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize((Globals.EnginesList)));
-                    MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.Load_Engines(self);
+                    if (Globals.EnginesList.Any(e => e.Engine_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.EnginesList.Any(e => e.Engine_Nickname.Equals("", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Globals.EnginesList.RemoveAt(0);
+                    }
+                    Globals.EnginesListStructure engine_entry = new Globals.EnginesListStructure
+                    {
+                        Engine_Nickname = BuildDefaultNickname(file),
+                        Engine_Dir = file
+                    };
+                    Globals.EnginesList.Add(engine_entry);
                 }
-                else
-                {
-                    MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
+                ConfigStore.SaveAll();
+                MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.Load_Engines(self);
             }
             else
             {
-                Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
-                {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = "", Engine_Version = ""}
-                };
-                File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add engine files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
         }
 
         public void Load_Engines(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
+            ConfigStore.LoadAll();
+
+            self.engines_list?.Items.Clear();
+
+            // Repair legacy entries whose nickname is actually a directory path (a past bug),
+            // regenerating it from the executable's file version metadata instead.
+            bool repairedNicknames = false;
+            foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
             {
-                self.engines_list?.Items.Clear();
-                string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
-                foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
+                if (!string.IsNullOrEmpty(engine_file.Engine_Dir) &&
+                    (string.IsNullOrEmpty(engine_file.Engine_Nickname) ||
+                     engine_file.Engine_Nickname.Contains(Path.DirectorySeparatorChar) ||
+                     engine_file.Engine_Nickname.Contains(Path.AltDirectorySeparatorChar)))
                 {
-                    if (!string.IsNullOrEmpty(engine_file.Engine_Name) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
-                    {
-                        string version = engine_file.Engine_Version?.Trim() ?? "";
-
-                        // Retroactively clean the display for existing entries that might have 'g' or 'v'
-                        if (version.Length > 1 && (version.StartsWith("g", StringComparison.OrdinalIgnoreCase) || version.StartsWith("v", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            version = version.Substring(1);
-                        }
-
-                        string displayText = engine_file.Engine_Name;
-                        if (!string.IsNullOrEmpty(version))
-                        {
-                            displayText += " v" + version;
-                        }
-                        displayText += " [" + engine_file.Engine_Dir + "]";
-                        self.engines_list?.Items.Add(displayText);
-                    }
-                    else
-                    {
-                        MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        break;
-                    }
+                    engine_file.Engine_Nickname = BuildDefaultNickname(engine_file.Engine_Dir);
+                    repairedNicknames = true;
                 }
-                Game_Options game_options = new Game_Options();
-                game_options.Load_EnginesToList(self);
             }
-            else
+            if (repairedNicknames)
+                ConfigStore.SaveAll();
+
+            foreach (Globals.EnginesListStructure engine_file in Globals.EnginesList)
             {
-                //MessageBox.Show("No configuration file found. Please create a config.json file in the application directory.", "Configuration File Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Globals.EnginesList = new BindingList<Globals.EnginesListStructure>
+                if (!string.IsNullOrEmpty(engine_file.Engine_Nickname) && !string.IsNullOrEmpty(engine_file.Engine_Dir))
                 {
-                    new Globals.EnginesListStructure {Engine_Name = "", Engine_Nickname = "", Engine_Dir = "", Engine_Version = ""}
-                };
-                File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize(Globals.EnginesList));
+                    string display = engine_file.Engine_Nickname + " [" + engine_file.Engine_Dir + "]";
+                    if (!string.IsNullOrEmpty(engine_file.Engine_Config))
+                        display += " (cfg: " + Path.GetFileName(engine_file.Engine_Config) + ")";
+                    self.engines_list?.Items.Add(display);
+                }
+                else
+                {
+                    MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
+                }
             }
+            Game_Options game_options = new Game_Options();
+            game_options.Load_EnginesToList(self);
         }
 
         public void Remove_Engine(Launcher_Window self)
@@ -280,8 +657,8 @@ namespace Doom_Launcher_Project
                     int selectedIndex = self.engines_list.SelectedIndex;
                     self.engines_list?.Items.RemoveAt(selectedIndex);
                     Globals.EnginesList.RemoveAt(selectedIndex);
-                    File.WriteAllText(Globals.engine_config_path, JsonSerializer.Serialize((Globals.EnginesList)));
                 }
+                ConfigStore.SaveAll();
                 Game_Options game_options = new Game_Options();
                 game_options.Load_EnginesToList(self);
 
@@ -293,91 +670,143 @@ namespace Doom_Launcher_Project
                 return;
             }
         }
+
+        public void Edit_Engine(Launcher_Window self)
+        {
+            if (self.engines_list?.SelectedItem == null || Globals.EnginesList == null)
+            {
+                MessageBox.Show("No engine selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int selectedIndex = self.engines_list.SelectedIndex;
+            if (selectedIndex < 0 || selectedIndex >= Globals.EnginesList.Count) return;
+
+            var engine = Globals.EnginesList[selectedIndex];
+
+            Form dialog = new Form()
+            {
+                Width = 560, Height = 360, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = $"Edit Engine: {engine.Engine_Nickname}", StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            // Nickname
+            Label nicknameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "Nickname (shown in engine dropdown):" };
+            TextBox nicknameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = engine.Engine_Nickname ?? string.Empty };
+
+            // Engine executable path
+            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "Engine executable path:" };
+            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = engine.Engine_Dir ?? string.Empty };
+            Button browseExeBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            browseExeBtn.Click += (s, e) =>
+            {
+                using OpenFileDialog ofd = new OpenFileDialog
+                {
+                    Title = "Select Engine Executable",
+                    Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*"
+                };
+                if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
+                if (ofd.ShowDialog() == DialogResult.OK)
+                    dirBox.Text = ofd.FileName;
+            };
+
+            // Config file
+            Label configLabel = new Label() { Left = 10, Top = 150, Width = 530, Text = "Config file path (passed as -config <path> to the engine):" };
+            TextBox configBox = new TextBox() { Left = 10, Top = 175, Width = 430, Text = engine.Engine_Config ?? string.Empty };
+            Button browseConfigBtn = new Button() { Text = "Browse...", Left = 450, Top = 173, Width = 80 };
+            browseConfigBtn.Click += (s, e) =>
+            {
+                using OpenFileDialog ofd = new OpenFileDialog
+                {
+                    Title = "Select Config File",
+                    Filter = "Config Files (*.cfg;*.ini)|*.cfg;*.ini|All Files (*.*)|*.*"
+                };
+                if (!string.IsNullOrEmpty(configBox.Text) && File.Exists(configBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(configBox.Text) ?? string.Empty;
+                else if (!string.IsNullOrEmpty(dirBox.Text))
+                    ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
+                if (ofd.ShowDialog() == DialogResult.OK)
+                    configBox.Text = ofd.FileName;
+            };
+            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 285, Width = 80, DialogResult = DialogResult.OK };
+            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 285, Width = 80, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] {
+                nicknameLabel, nicknameBox,
+                dirLabel, dirBox, browseExeBtn,
+                configLabel, configBox, browseConfigBtn,
+                okBtn, cancelBtn
+            });
+            dialog.AcceptButton = okBtn;
+            dialog.CancelButton = cancelBtn;
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                engine.Engine_Nickname = nicknameBox.Text.Trim();
+                engine.Engine_Dir = dirBox.Text.Trim();
+                engine.Engine_Config = configBox.Text.Trim();
+                ConfigStore.SaveAll();
+                this.Load_Engines(self);
+            }
+        }
     }
 
     public class Mods_Options
     {
         public void AddMods(Launcher_Window self)
         {
-            if (File.Exists(Globals.mods_config_path))
-            {
-                string temp_name = string.Empty;
-                if (string.IsNullOrEmpty(File.ReadAllText(Globals.mods_config_path)))
-                {
-                    Globals.ModsList?.Clear();
-                }
-                else
-                {
-                    string mods_json = File.ReadAllText(Globals.mods_config_path);
-                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
-                }
+            ConfigStore.LoadAll();
 
-                //opens a file dialog to select mod files
-                OpenFileDialog ModFileDialog = new OpenFileDialog
+            //opens a file dialog to select mod files
+            OpenFileDialog ModFileDialog = new OpenFileDialog
+            {
+                Title = "Select Mod Files",
+                Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
+                Multiselect = true
+            };
+            if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
+            {
+                foreach (string file in ModFileDialog.FileNames)
                 {
-                    Title = "Select Mod Files",
-                    Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
-                    Multiselect = true
-                };
-                if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
-                {
-                    foreach (string file in ModFileDialog.FileNames)
+                    if (Globals.ModsList.Any(m => m.Mod_Dir != null && m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (Globals.ModsList.Any(m => m.Mod_Dir != null && m.Mod_Dir.Equals(file, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            continue;
-                        }
-                        if (Globals.ModsList.Any(m => m.Mod_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.ModsList.Any(m => m.Mod_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            Globals.ModsList.RemoveAt(0);
-                        }
-                        Globals.ModsListStructure mod_entry = new Globals.ModsListStructure
-                        {
-                            Mod_Name = Path.GetFileNameWithoutExtension(file),
-                            Mod_Dir = file
-                        };
-                        Globals.ModsList.Add(mod_entry);
-                        File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize((Globals.ModsList)));
-                        this.Load_Mods(self);
-                        MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        continue;
                     }
-                }
-                else
-                {
-                    MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    if (Globals.ModsList.Any(m => m.Mod_Dir.Equals("", StringComparison.OrdinalIgnoreCase)) || Globals.ModsList.Any(m => m.Mod_Name.Equals("", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Globals.ModsList.RemoveAt(0);
+                    }
+                    Globals.ModsListStructure mod_entry = new Globals.ModsListStructure
+                    {
+                        Mod_Name = Path.GetFileNameWithoutExtension(file),
+                        Mod_Dir = file
+                    };
+                    Globals.ModsList.Add(mod_entry);
+                    ConfigStore.SaveAll();
+                    this.Load_Mods(self);
+                    MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             else
             {
-                Globals.ModsList = new BindingList<Globals.ModsListStructure>
-                {
-                    new Globals.ModsListStructure {Mod_Name = "", Mod_Dir = ""}
-                };
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList));
-                //MessageBox.Show("No configuration file found. A new one has been created. Please add mod files again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
         }
         public void Load_Mods(Launcher_Window self)
         {
-            if (File.Exists(Globals.mods_config_path))
+            ConfigStore.LoadAll();
+
+            self.mods_selection?.Items.Clear();
+            foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
             {
-                self.mods_selection?.Items.Clear();
-                string json = File.ReadAllText(Globals.mods_config_path);
-                Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(json) ?? new();
-                foreach (Globals.ModsListStructure mod_file in Globals.ModsList)
+                if (!string.IsNullOrEmpty(mod_file.Mod_Name))
                 {
-                    if (!string.IsNullOrEmpty(mod_file.Mod_Name))
-                    {
-                        self.mods_selection?.Items.Add(mod_file.Mod_Name!);
-                    }
-                    // If Mod_Name is empty, just skip it. No need for a MessageBox.
+                    self.mods_selection?.Items.Add(mod_file.Mod_Name!);
                 }
-            }
-            else
-            {
-                Globals.ModsList = new BindingList<Globals.ModsListStructure>(); // Initialize as empty list
-                File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize(Globals.ModsList)); // Write empty list to file
+                // If Mod_Name is empty, just skip it. No need for a MessageBox.
             }
         }
 
@@ -390,8 +819,8 @@ namespace Doom_Launcher_Project
                     int selectedIndex = self.mods_selection.SelectedIndex;
                     self.mods_selection?.Items.RemoveAt(selectedIndex);
                     Globals.ModsList.RemoveAt(selectedIndex);
-                    File.WriteAllText(Globals.mods_config_path, JsonSerializer.Serialize((Globals.ModsList)));
                 }
+                ConfigStore.SaveAll();
                 MessageBox.Show("Selected mod/mods removed and configuration updated.", "Mod/mods Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
@@ -422,7 +851,8 @@ namespace Doom_Launcher_Project
                 Selected_FragLimit = self.frag_limit?.Text ?? string.Empty,
                 Selected_TimeLimit = self.time_limit?.Text ?? string.Empty,
                 Selected_DMFlags = self.dmflags?.Text ?? string.Empty,
-                Selected_DMFlags2 = self.dmflags2?.Text ?? string.Empty
+                Selected_DMFlags2 = self.dmflags2?.Text ?? string.Empty,
+                Additional_Parameters = self.additional_parameters_textbox?.Text ?? string.Empty
             };
         }
 
@@ -454,7 +884,7 @@ namespace Doom_Launcher_Project
                 self.dmflags2_label.Enabled = true;
                 self.dmflags2.Enabled = true;
             }
-            else 
+            else
             {
                 self.game_mode_label.Enabled = false;
                 self.multiplayer_game_mode_select.Enabled = false;
@@ -473,18 +903,16 @@ namespace Doom_Launcher_Project
                 self.dmflags2_label.Enabled = false;
                 self.dmflags2.Enabled = false;
 
-                // Clear multiplayer values from UI if the user manually disabled the mode
-                if (!Globals.IsLoadingConfig)
-                {
-                    if (self.multiplayer_game_mode_select != null) self.multiplayer_game_mode_select.SelectedIndex = -1;
-                    if (self.players_host_select != null) self.players_host_select.SelectedIndex = -1;
-                    self.hostname_ip_textbox?.Clear();
-                    self.port_textbox?.Clear();
-                    self.frag_limit?.Clear();
-                    self.time_limit?.Clear();
-                    self.dmflags?.Clear();
-                    self.dmflags2?.Clear();
-                }
+                // Multiplayer is off: clear the online-game values too, instead of just
+                // disabling controls that still display stale data underneath.
+                self.multiplayer_game_mode_select.SelectedIndex = -1;
+                self.players_host_select.SelectedIndex = -1;
+                self.hostname_ip_textbox.Text = string.Empty;
+                self.port_textbox.Text = string.Empty;
+                self.frag_limit.Text = string.Empty;
+                self.time_limit.Text = string.Empty;
+                self.dmflags.Text = string.Empty;
+                self.dmflags2.Text = string.Empty;
             }
         }
 
@@ -495,51 +923,22 @@ namespace Doom_Launcher_Project
             if (Globals.IsLoadingConfig)
                 return;
 
-            if (File.Exists(Globals.game_config_path))
-            {
-                Globals.Profiles.Configuration[Globals.SelectedProfile] = GetConfigFromUI(self);
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
-            }
+            List<Globals.GameConfigStructure> entries = Globals.Config.Configuration.Profiles.Entries;
+            Globals.GameConfigStructure? existing = entries.FirstOrDefault(p => p.Name == Globals.SelectedProfile);
+            Globals.GameConfigStructure updated = GetConfigFromUI(self);
+            updated.Name = Globals.SelectedProfile;
+
+            if (existing != null)
+                entries[entries.IndexOf(existing)] = updated;
             else
-            {
-                File.WriteAllText(Globals.game_config_path, string.Empty);
-                MessageBox.Show("No configuration file found. A new one has been created. Please save game options again.", "Configuration File Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
+                entries.Add(updated);
 
-        private void Clear_GameOptionsUI(Launcher_Window self)
-        {
-            // Reset selections to defaults or -1
-            if (self.engine_selection != null) self.engine_selection.SelectedIndex = -1;
-            
-            if (self.wad_selection != null) 
-                self.wad_selection.SelectedIndex = self.wad_selection.Items.IndexOf("(None)");
-
-            if (self.map_selection != null) self.map_selection.Items.Clear();
-            if (self.difficulty_selection != null) self.difficulty_selection.SelectedIndex = -1;
-
-            if (self.mods_selection != null)
-            {
-                for (int i = 0; i < self.mods_selection.Items.Count; i++)
-                    self.mods_selection.SetItemChecked(i, false);
-            }
-
-            if (self.enable_multiplayer != null) self.enable_multiplayer.Checked = false;
-            if (self.multiplayer_game_mode_select != null) self.multiplayer_game_mode_select.SelectedIndex = -1;
-            if (self.players_host_select != null) self.players_host_select.SelectedIndex = -1;
-
-            // Clear TextBoxes
-            self.hostname_ip_textbox.Clear();
-            self.port_textbox.Clear();
-            if (self.frag_limit != null) self.frag_limit.Clear();
-            if (self.time_limit != null) self.time_limit.Clear();
-            if (self.dmflags != null) self.dmflags.Clear();
-            if (self.dmflags2 != null) self.dmflags2.Clear();
+            ConfigStore.SaveAll();
         }
 
         public void Load_GameOptions(Launcher_Window self)
         {
-            if (!File.Exists(Globals.game_config_path) || self.wad_selection.Items == null || self.engine_selection.Items == null)
+            if (self.wad_selection.Items == null || self.engine_selection.Items == null)
                 return;
 
             // Start the loading guard
@@ -547,33 +946,11 @@ namespace Doom_Launcher_Project
 
             try
             {
-                string game_json = File.ReadAllText(Globals.game_config_path);
-                if (string.IsNullOrEmpty(game_json)) return;
+                ConfigStore.LoadAll();
 
-                try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(game_json) ?? new Globals.RootConfig(); }
-                catch { Globals.Profiles = new Globals.RootConfig(); }
-
-                if (File.Exists(Globals.wad_config_path))
+                Globals.GameConfigStructure? config = Globals.Config.Configuration.Profiles.Entries.FirstOrDefault(p => p.Name == Globals.SelectedProfile);
+                if (config != null)
                 {
-                    string wad_json = File.ReadAllText(Globals.wad_config_path);
-                    Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(wad_json) ?? new();
-                }
-                if (File.Exists(Globals.engine_config_path))
-                {
-                    string engine_json = File.ReadAllText(Globals.engine_config_path);
-                    Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(engine_json) ?? new();
-                }
-                if (File.Exists(Globals.mods_config_path))
-                {
-                    string mods_json = File.ReadAllText(Globals.mods_config_path);
-                    Globals.ModsList = JsonSerializer.Deserialize<BindingList<Globals.ModsListStructure>>(mods_json) ?? new();
-                }
-
-                if (Globals.Profiles.Configuration.TryGetValue(Globals.SelectedProfile, out var config))
-                {
-                    // Only clear the UI if we have successfully found a profile to load.
-                    // This prevents data loss if the selection change happens accidentally.
-                    Clear_GameOptionsUI(self);
 
                     if (!string.IsNullOrEmpty(config.Selected_WAD))
                     {
@@ -588,6 +965,11 @@ namespace Doom_Launcher_Project
                             }
                         }
                     }
+                    else
+                    {
+                        self.wad_selection.SelectedIndex = self.wad_selection.Items.IndexOf("(None)");
+                        this.Load_MapsToList(self);
+                    }
 
                     if (!string.IsNullOrEmpty(config.Selected_Engine))
                     {
@@ -598,6 +980,10 @@ namespace Doom_Launcher_Project
                             if (index != -1)
                                 self.engine_selection.SelectedIndex = index;
                         }
+                    }
+                    else
+                    {
+                        self.engine_selection.SelectedIndex = -1;
                     }
 
                     for (int i = 0; i < self.mods_selection.Items.Count; i++)
@@ -621,11 +1007,19 @@ namespace Doom_Launcher_Project
                         int index = self.multiplayer_game_mode_select.Items.IndexOf(config.Selected_Game_Mode);
                         if (index != -1) self.multiplayer_game_mode_select.SelectedIndex = index;
                     }
+                    else
+                    {
+                        self.multiplayer_game_mode_select.SelectedIndex = -1;
+                    }
 
                     if (!string.IsNullOrEmpty(config.Selected_Players))
                     {
                         int index = self.players_host_select.Items.IndexOf(config.Selected_Players);
                         if (index != -1) self.players_host_select.SelectedIndex = index;
+                    }
+                    else
+                    {
+                        self.players_host_select.SelectedIndex = -1;
                     }
 
                     self.hostname_ip_textbox.Text = config.Host;
@@ -634,11 +1028,16 @@ namespace Doom_Launcher_Project
                     if (self.time_limit != null) self.time_limit.Text = config.Selected_TimeLimit;
                     if (self.dmflags != null) self.dmflags.Text = config.Selected_DMFlags;
                     if (self.dmflags2 != null) self.dmflags2.Text = config.Selected_DMFlags2;
+                    if (self.additional_parameters_textbox != null) self.additional_parameters_textbox.Text = config.Additional_Parameters;
 
                     if (!string.IsNullOrEmpty(config.Selected_SkillLevel))
                     {
                         int index = self.difficulty_selection.Items.IndexOf(config.Selected_SkillLevel);
                         if (index != -1) self.difficulty_selection.SelectedIndex = index;
+                    }
+                    else
+                    {
+                        self.difficulty_selection.SelectedIndex = self.difficulty_selection.Items.IndexOf("(Default)");
                     }
 
                     if (self.wad_selection.SelectedItem != null && !string.IsNullOrEmpty(config.Selected_Map))
@@ -657,34 +1056,28 @@ namespace Doom_Launcher_Project
 
         public void Load_WADsToList(Launcher_Window self)
         {
-            if (File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
+
+            self.wad_selection.Items.Clear();
+            string temp_name = string.Empty;
+            self.wad_selection.Items.Add("(None)");
+            foreach (Globals.WADListStructure wad in Globals.WADList)
             {
-                self.wad_selection.Items.Clear();
-                string temp_name = string.Empty;
-                string json = File.ReadAllText(Globals.wad_config_path);
-                Globals.WADList = JsonSerializer.Deserialize<BindingList<Globals.WADListStructure>>(json) ?? new();
-                self.wad_selection.Items.Add("(None)");
-                foreach (Globals.WADListStructure wad in Globals.WADList)
-                {
-                    temp_name = wad.WAD_Name ?? string.Empty;
-                    self.wad_selection.Items.Add(temp_name);
-                }
+                temp_name = wad.WAD_Name ?? string.Empty;
+                self.wad_selection.Items.Add(temp_name);
             }
         }
 
         public void Load_EnginesToList(Launcher_Window self)
         {
-            if (File.Exists(Globals.engine_config_path))
+            ConfigStore.LoadAll();
+
+            self.engine_selection.Items.Clear();
+            string temp_name = string.Empty;
+            foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
             {
-                self.engine_selection.Items.Clear();
-                string temp_name = string.Empty;
-                string json = File.ReadAllText(Globals.engine_config_path);
-                Globals.EnginesList = JsonSerializer.Deserialize<BindingList<Globals.EnginesListStructure>>(json) ?? new();
-                foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
-                {
-                    temp_name = engine.Engine_Nickname ?? string.Empty;
-                    self.engine_selection.Items.Add(temp_name);
-                }
+                temp_name = engine.Engine_Nickname ?? string.Empty;
+                self.engine_selection.Items.Add(temp_name);
             }
         }
 
@@ -724,79 +1117,96 @@ namespace Doom_Launcher_Project
         {
             if (self.wad_selection?.SelectedItem?.ToString() is string selectedWad && selectedWad != "(None)")
             {
-                string normalized = selectedWad.ToLowerInvariant();
-                normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // remove punctuation/space
-                normalized = normalized + ".wad";
-                if (Globals.match_1.Any(match => normalized.Contains(match.ToLowerInvariant())))
+                string? wadPath = Globals.WADList.FirstOrDefault(w => w.WAD_Name == selectedWad)?.WAD_Dir;
+
+                if (string.IsNullOrEmpty(wadPath) || !File.Exists(wadPath))
                 {
-                    if (self.map_selection != null) // Add null check for map_selection
-                    {
-                        self.map_selection.Items.Clear();
-                        foreach (string map in Globals.doom_1_maps)
-                        {
-                            self.map_selection.Items.Add(map);
-                        }
-                        //make sure the default setting is applied for less confusion
-                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
-                    }
+                    self.map_selection?.Items.Clear();
+                    return;
                 }
-                else if (Globals.match_2.Any(match => normalized.Contains(match.ToLowerInvariant())))
-                {
-                    if (self.map_selection != null) // Add null check for map_selection
-                    {
-                        self.map_selection.Items.Clear();
-                        foreach (string map in Globals.doom_2_maps)
-                        {
-                            self.map_selection.Items.Add(map);
-                        }
-                        //make sure the default setting is applied for less confusion
-                        self.map_selection.SelectedItem = self.map_selection.Items.IndexOf("(Default)");
-                    }
-                }
-                else
+
+                // Pull the actual level lumps present in this WAD (cached after the first scan)
+                // instead of dumping a hardcoded list of every possible Doom 1/2 map.
+                List<string> levels = WadLevelDatabase.GetLevels(wadPath);
+
+                if (self.map_selection != null)
                 {
                     self.map_selection.Items.Clear();
-                    MessageBox.Show("No WAD match found in either database!", "No WAD match!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (levels.Count > 0)
+                    {
+                        self.map_selection.Items.Add("(Default)");
+                        foreach (string level in levels)
+                            self.map_selection.Items.Add(level);
+                        self.map_selection.SelectedIndex = 0;
+                    }
+                    // No ExMy/MAPxy lumps found: leave the list empty silently, no popup.
                 }
             }
             else
             {
                 self.map_selection?.Items.Clear();
-                return;
             }
         }
 
         public void GenerateExecutable(Launcher_Window self)
         {
-            if (Globals.IsLoadingConfig) return;
-
-            if (File.Exists(Globals.engine_config_path) && File.Exists(Globals.wad_config_path))
+            ConfigStore.LoadAll();
             {
-                List<string> args = new List<string>();
-                string selected_engine = string.Empty;
+                //command line to launch the game
+                string arguments = string.Empty;
 
-                // multiplayer variables
+                //game arguments
+                string selected_engine = string.Empty;
+                string selected_config = string.Empty;
+                string selected_wad = string.Empty;
+                string selected_map = string.Empty;
+                string selected_difficulty = string.Empty;
+                string selected_mod = string.Empty;
+
+                //multiplayers game arguments
                 string selected_game_mode = string.Empty;
+                string selected_players = string.Empty;
+                string host = string.Empty;
+                string port = string.Empty;
                 string selected_frag_limit = string.Empty;
                 string selected_time_limit = string.Empty;
                 string selected_dmflags = string.Empty;
                 string selected_dmflags2 = string.Empty;
+                string selected_additional_parameters = string.Empty;
 
-                // 1. Engine Selection
-                if (self.engine_selection?.SelectedIndex != -1)
+                //check if an engine, mods and a wads are selected
+                if (self.engine_selection?.SelectedItem != null)
                 {
-                    var engine = Globals.EnginesList.ElementAtOrDefault(self.engine_selection?.SelectedIndex ?? -1);
-                    if (engine != null) selected_engine = engine.Engine_Dir;
+                    foreach (Globals.EnginesListStructure engine in Globals.EnginesList)
+                    {
+                        if (Globals.EnginesList.IndexOf(engine) == self.engine_selection.SelectedIndex)
+                        {
+                            selected_engine = engine.Engine_Dir;
+                            if (!string.IsNullOrEmpty(engine.Engine_Config))
+                                selected_config = $" -config \"{engine.Engine_Config}\"";
+                            break;
+                        }
+                    }
                 }
-
-                // 2. IWAD Selection
-                if (self.wad_selection?.SelectedItem != null && self.wad_selection.SelectedItem?.ToString() != "(None)")
+                else
                 {
-                    var wad = Globals.WADList.FirstOrDefault(w => w.WAD_Name == self.wad_selection?.SelectedItem?.ToString());
-                    if (wad != null) args.Add($"-iwad \"{wad.WAD_Dir}\"");
+                    selected_engine = "";
                 }
-
-                // 3. Mods Selection
+                if (self.wad_selection?.SelectedItem != null && self.wad_selection.SelectedItem.ToString() != "(None)")
+                {
+                    foreach (Globals.WADListStructure wad in Globals.WADList)
+                    {
+                        if (wad.WAD_Name == self.wad_selection.SelectedItem.ToString())
+                        {
+                            selected_wad = $"{" -iwad \"" + wad.WAD_Dir + "\""}";
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    selected_wad = "";
+                }
                 if (self.mods_selection?.CheckedItems.Count > 0)
                 {
                     string preselected_mod = string.Empty;
@@ -804,106 +1214,196 @@ namespace Doom_Launcher_Project
                     {
                         foreach (string selected_mod_item in self.mods_selection.CheckedItems)
                         {
-                            if (mod.Mod_Name == selected_mod_item)
+                            if (mod.Mod_Name == selected_mod_item?.ToString())
                             {
-                                preselected_mod += $"\"{mod.Mod_Dir}\" ";
+                                preselected_mod = preselected_mod + "\"" + mod.Mod_Dir + "\" ";
                                 break;
                             }
                         }
                     }
-                    if (!string.IsNullOrEmpty(preselected_mod)) args.Add($"-file {preselected_mod.Trim()}");
+                    selected_mod = $"{" -file " + preselected_mod}";
                 }
 
-                // 4. Skill Level Selection
+                //dufficulty and map selection
                 if (self.difficulty_selection?.SelectedItem != null)
                 {
-                    string diff = self.difficulty_selection?.SelectedItem?.ToString() ?? string.Empty;
-                    string skillArg = diff switch
+                    switch (self.difficulty_selection.SelectedItem.ToString())
                     {
-                        "Very Easy" => "1",
-                        "Easy" => "2",
-                        "Medium" => "3",
-                        "Hard" => "4",
-                        "Very Hard" => "5",
-                        _ => ""
-                    };
-                    if (!string.IsNullOrEmpty(skillArg)) args.Add($"-skill {skillArg}");
+                        case "(Default)":
+                            selected_difficulty = "";
+                            break;
+                        case "Very Easy":
+                            selected_difficulty = " -skill 1";
+                            break;
+                        case "Easy":
+                            selected_difficulty = " -skill 2";
+                            break;
+                        case "Medium":
+                            selected_difficulty = " -skill 3";
+                            break;
+                        case "Hard":
+                            selected_difficulty = " -skill 4";
+                            break;
+                        case "Very Hard":
+                            selected_difficulty = " -skill 5";
+                            break;
+                        default:
+                            selected_difficulty = "";
+                            break;
+                    }
                 }
-
-                // 5. Map Selection (Dynamic Warp)
                 if (self.map_selection?.SelectedItem != null)
                 {
-                    string map = self.map_selection?.SelectedItem?.ToString() ?? string.Empty;
-                    if (map != "(Default)")
-                    {
-                        // Logic for E1M1 style
-                        var matchE = Regex.Match(map ?? string.Empty, @"E(\d)M(\d)", RegexOptions.IgnoreCase);
-                        if (matchE.Success)
-                        {
-                            args.Add($"-warp {matchE.Groups[1].Value} {matchE.Groups[2].Value}");
-                        }
-                        else
-                        {
-                            // Logic for MAP01 style
-                            var matchM = Regex.Match(map ?? string.Empty, @"MAP(\d+)", RegexOptions.IgnoreCase);
-                            if (matchM.Success) args.Add($"-warp {matchM.Groups[1].Value}");
-                        }
-                    }
+                    selected_map = BuildWarpArgument(self.map_selection.SelectedItem.ToString());
                 }
 
-                // 6. Online game options
+                if (!string.IsNullOrWhiteSpace(self.additional_parameters_textbox?.Text))
+                    selected_additional_parameters = " " + self.additional_parameters_textbox.Text;
+
+                //online game options
                 if (self.enable_multiplayer?.Checked == true)
                 {
-                    string host = self.hostname_ip_textbox?.Text ?? string.Empty;
-                    string port = self.port_textbox?.Text ?? string.Empty;
-
+                    //select the game mode for a multiplayer game
                     if (self.multiplayer_game_mode_select?.SelectedItem != null)
                     {
-                        selected_game_mode = self.multiplayer_game_mode_select?.SelectedItem?.ToString() switch
+                        switch (self.multiplayer_game_mode_select.SelectedItem.ToString()!)
                         {
-                            "Deathmatch" => "-deathmatch",
-                            "Alt Deathmatch" => "-altdeath",
-                            _ => ""
-                        };
-                        if (!string.IsNullOrEmpty(selected_game_mode)) args.Add(selected_game_mode);
+                            case "CO_OP":
+                                selected_game_mode = "";
+                                break;
+                            case "Deathmatch":
+                                selected_game_mode = " -deathmatch";
+                                break;
+                            case "Alt Deathmatch":
+                                selected_game_mode = " -altdeath";
+                                break;
+                            default:
+                                selected_game_mode = "";
+                                break;
+                        }
                     }
-
-                    string playersStr = self.players_host_select?.SelectedItem?.ToString() ?? string.Empty;
-                    if (playersStr == "Join" && !string.IsNullOrWhiteSpace(host))
+                    if (self.hostname_ip_textbox?.Text != null && self.hostname_ip_textbox.Text != string.Empty)
                     {
-                        // Join format: -join IP:Port
-                        args.Add($"-join {host}{(string.IsNullOrWhiteSpace(port) ? "" : ":" + port)}");
+                        host = self.hostname_ip_textbox.Text;
                     }
-                    else if (playersStr.StartsWith("Host "))
+                    //no need to return if port is not available (it's an optional feature)
+                    if (self.port_textbox?.Text != null && self.port_textbox.Text != string.Empty)
                     {
-                        // Host format: -host <count> -port <port>
-                        string playerCount = playersStr.Replace("Host ", "").Trim();
-                        args.Add($"-host {playerCount}");
-                        
-                        if (!string.IsNullOrWhiteSpace(port))
+                        port = self.port_textbox.Text;
+                    }
+                    //select whether to host or join a game
+                    if (self.players_host_select?.SelectedItem != null)
+                    {
+                        switch (self.players_host_select.SelectedItem.ToString()!)
                         {
-                            args.Add($"-port {port}");
+                            case "Join":
+                                if (port == null || port == string.Empty)
+                                {
+                                    selected_players = $"{" -join " + host}";
+                                }
+                                else if (port != null || port != string.Empty)
+                                {
+                                    selected_players = $"{" -join " + host + ":" + port}";
+                                }
+                                break;
+                            case "Host 1":
+                                selected_players = " -host 1";
+                                break;
+                            case "Host 2":
+                                selected_players = " -host 2";
+                                break;
+                            case "Host 3":
+                                selected_players = " -host 3";
+                                break;
+                            case "Host 4":
+                                selected_players = " -host 4";
+                                break;
+                            case "Host 5":
+                                selected_players = " -host 5";
+                                break;
+                            case "Host 6":
+                                selected_players = " -host 6";
+                                break;
+                            case "Host 7":
+                                selected_players = " -host 7";
+                                break;
+                            case "Host 8":
+                                selected_players = " -host 8";
+                                break;
+                            case "(More)":
+                                break;
+                            default:
+                                selected_players = "";
+                                break;
                         }
                     }
 
-                    if (!string.IsNullOrEmpty(self.frag_limit?.Text)) args.Add($"+set fraglimit {self.frag_limit.Text}");
-                    if (!string.IsNullOrEmpty(self.time_limit?.Text)) args.Add($"+set timelimit {self.time_limit.Text}");
-                    if (!string.IsNullOrEmpty(self.dmflags?.Text)) args.Add($"+set dmflags {self.dmflags.Text}");
-                    if (!string.IsNullOrEmpty(self.dmflags2?.Text)) args.Add($"+set dmflags2 {self.dmflags2.Text}");
+                    //extra online game arguments
+                    if (self.frag_limit?.Text != null && self.frag_limit.Text != string.Empty)
+                    {
+                        selected_frag_limit = $"{" +set fraglimit " + self.frag_limit.Text}";
+                    }
+                    else 
+                    {
+                        selected_frag_limit = "";
+                    }
+                    if (self.time_limit?.Text != null && self.time_limit.Text != string.Empty)
+                    {
+                        selected_time_limit = $"{" +set timelimit " + self.time_limit.Text}";
+                    }
+                    else
+                    {
+                        selected_time_limit = "";
+                    }
+                    if (self.dmflags?.Text != null && self.dmflags.Text != string.Empty)
+                    {
+                        selected_dmflags = $"{" +set dmflags " + self.dmflags.Text}";
+                    }
+                    else 
+                    {
+                        selected_dmflags = "";
+                    }
+                    if (self.dmflags2?.Text != null && self.dmflags2.Text != string.Empty)
+                    {
+                        selected_dmflags2 = $"{" +set dmflags2 " + self.dmflags2.Text}";
+                    }
+                    else
+                    {
+                        selected_dmflags2 = "";
+                    }
                 }
 
-                string arguments = string.Join(" ", args);
-                self.command_line_view.Text = $"\"{selected_engine}\" {arguments}";
-
+                //build the play command
+                arguments = $"{selected_config + selected_wad + selected_difficulty + selected_map + selected_mod + selected_dmflags + selected_dmflags2 + selected_game_mode + selected_players + selected_frag_limit + selected_time_limit + selected_additional_parameters}";
+                self.command_line_view.Text = $"{selected_engine} {arguments}";
+                //load the command line to globals for launching the game
                 Globals.game_launch_engine = selected_engine;
                 Globals.game_launch_arguments = arguments;
-                Globals.game_launch_command = self.command_line_view.Text;
+                Globals.game_launch_command = $"{selected_engine} {arguments}";
             }
+        }
+
+        // Turns a dynamically-discovered level lump name (ExMy/MAPxy) into the engine's
+        // -warp argument, instead of looking it up in a hardcoded table.
+        private string BuildWarpArgument(string? mapName)
+        {
+            if (string.IsNullOrEmpty(mapName) || mapName == "(Default)")
+                return string.Empty;
+
+            Match episodeMap = Regex.Match(mapName, "^E([0-9])M([0-9])$");
+            if (episodeMap.Success)
+                return $" -warp {episodeMap.Groups[1].Value} {episodeMap.Groups[2].Value}";
+
+            Match mapNumber = Regex.Match(mapName, "^MAP([0-9]{2})$");
+            if (mapNumber.Success)
+                return $" -warp {mapNumber.Groups[1].Value}";
+
+            return string.Empty;
         }
 
         public void PlayGame(Launcher_Window self)
         {
-            GenerateExecutable(self);
+            this.GenerateExecutable(self);
             try
             {
                 ProcessStartInfo game_info = new ProcessStartInfo
@@ -911,6 +1411,7 @@ namespace Doom_Launcher_Project
                     FileName = Globals.game_launch_engine,
                     Arguments = Globals.game_launch_arguments,
                     UseShellExecute = false,
+                    //CreateNoWindow = false
                 };
                 Process.Start(game_info);
             }
@@ -926,25 +1427,18 @@ namespace Doom_Launcher_Project
     {
         public void Load_Profiles(Launcher_Window self)
         {
-            if (File.Exists(Globals.game_config_path))
-            {
-                string json = File.ReadAllText(Globals.game_config_path);
-                if (!string.IsNullOrEmpty(json))
-                {
-                    try { Globals.Profiles = JsonSerializer.Deserialize<Globals.RootConfig>(json) ?? new Globals.RootConfig(); }
-                    catch { Globals.Profiles = new Globals.RootConfig(); }
-                }
-            }
+            ConfigStore.LoadAll();
 
-            if (Globals.Profiles.Configuration.Count == 0)
-                Globals.Profiles.Configuration["Default"] = new Globals.GameConfigStructure();
+            Globals.ProfilesContainer profiles = Globals.Config.Configuration.Profiles;
+            if (profiles.Entries.Count == 0)
+                profiles.Entries.Add(new Globals.GameConfigStructure { Name = "Default" });
 
             self.profile_select.Items.Clear();
-            foreach (var profile in Globals.Profiles.Configuration.Keys)
-                self.profile_select.Items.Add(profile);
+            foreach (Globals.GameConfigStructure profile in profiles.Entries)
+                self.profile_select.Items.Add(profile.Name);
 
             // Set the selected profile based on LastSelectedProfile from config, or default to "Default"
-            string profileToSelect = Globals.Profiles.LastSelectedProfile;
+            string profileToSelect = profiles.LastSelectedProfile;
             if (!self.profile_select.Items.Contains(profileToSelect))
             {
                 profileToSelect = "Default"; // Fallback to "Default" if LastSelectedProfile is not found
@@ -952,7 +1446,108 @@ namespace Doom_Launcher_Project
 
             Globals.SelectedProfile = profileToSelect;
             self.profile_select.SelectedItem = profileToSelect;
-            
+
+            UpdateProfileDetails(self);
+        }
+
+        // Renders a quick read-only preview of the selected profile's saved settings
+        // (from launcher_config.json) into profile_details_textbox, so the user can see
+        // what they're about to launch without switching to the Game Options tab.
+        public void UpdateProfileDetails(Launcher_Window self)
+        {
+            RichTextBox details = self.profile_details_textbox;
+            details.Clear();
+
+            if (self.profile_select.SelectedItem == null)
+                return;
+
+            string profileName = self.profile_select.SelectedItem.ToString() ?? string.Empty;
+            Globals.GameConfigStructure? profile = Globals.Config.Configuration.Profiles.Entries.FirstOrDefault(p => p.Name == profileName);
+            if (profile == null)
+                return;
+
+            AppendHeading(details, "Selected WAD:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_WAD) ? "(none)" : profile.Selected_WAD);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Selected Mods:");
+            string[] mods = profile.Selected_Mods.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            if (mods.Length == 0)
+                AppendValue(details, "(none)");
+            else
+                foreach (string mod in mods)
+                    AppendValue(details, mod);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Game difficulty:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_SkillLevel) ? "(Default)" : profile.Selected_SkillLevel);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Starting map:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Map) ? "(Default)" : profile.Selected_Map);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Multiplayer options:");
+            if (profile.Enable_Multiplayer)
+            {
+                AppendSubItem(details, "Online game mode:", string.IsNullOrEmpty(profile.Selected_Game_Mode) ? "(none)" : profile.Selected_Game_Mode);
+                AppendSubItem(details, "Players:", string.IsNullOrEmpty(profile.Selected_Players) ? "(none)" : profile.Selected_Players);
+                if (!string.IsNullOrEmpty(profile.Host))
+                    AppendSubItem(details, "Host:", profile.Host + (string.IsNullOrEmpty(profile.Port) ? string.Empty : ":" + profile.Port));
+                if (!string.IsNullOrEmpty(profile.Selected_FragLimit))
+                    AppendSubItem(details, "Frag limit:", profile.Selected_FragLimit);
+                if (!string.IsNullOrEmpty(profile.Selected_TimeLimit))
+                    AppendSubItem(details, "Time limit:", profile.Selected_TimeLimit);
+                if (!string.IsNullOrEmpty(profile.Selected_DMFlags))
+                    AppendSubItem(details, "DMFLAGS:", profile.Selected_DMFlags);
+                if (!string.IsNullOrEmpty(profile.Selected_DMFlags2))
+                    AppendSubItem(details, "DMFLAGS2:", profile.Selected_DMFlags2);
+            }
+            else
+            {
+                AppendValue(details, "Disabled (singleplayer)");
+            }
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Running using:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Engine) ? "(none)" : profile.Selected_Engine);
+            AppendBlankLine(details);
+
+            AppendHeading(details, "Additional parameters:");
+            AppendValue(details, string.IsNullOrEmpty(profile.Additional_Parameters) ? "(none)" : profile.Additional_Parameters);
+        }
+
+        private static void AppendHeading(RichTextBox rtb, string text)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
+            rtb.AppendText(text + "\n");
+        }
+
+        private static void AppendValue(RichTextBox rtb, string text)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(text + "\n");
+        }
+
+        private static void AppendBlankLine(RichTextBox rtb)
+        {
+            rtb.AppendText("\n");
+        }
+
+        private static void AppendSubItem(RichTextBox rtb, string label, string value)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
+            rtb.AppendText("    " + label + " ");
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(value + "\n");
         }
 
         public void AddProfile(Launcher_Window self)
@@ -960,15 +1555,17 @@ namespace Doom_Launcher_Project
             string profileName = Prompt.ShowDialog("Enter profile name:", "New Profile");
             if (!string.IsNullOrWhiteSpace(profileName))
             {
-                if (Globals.Profiles.Configuration.ContainsKey(profileName))
+                List<Globals.GameConfigStructure> entries = Globals.Config.Configuration.Profiles.Entries;
+                if (entries.Any(p => p.Name == profileName))
                 {
                     MessageBox.Show("Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                Game_Options gameOpts = new Game_Options();
-                // Initialize a new empty configuration instead of pulling from the current UI
-                Globals.Profiles.Configuration[profileName] = new Globals.GameConfigStructure();
-                File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                // Start blank rather than snapshotting whatever is currently on the Game
+                // Options tab, so a new profile never silently inherits another profile's settings.
+                Globals.GameConfigStructure newProfile = new Globals.GameConfigStructure { Name = profileName };
+                entries.Add(newProfile);
+                ConfigStore.SaveAll();
                 Load_Profiles(self);
                 self.profile_select.SelectedItem = profileName;
             }
@@ -982,9 +1579,9 @@ namespace Doom_Launcher_Project
                 if (profileName == "Default") { MessageBox.Show("Cannot remove Default profile."); return; }
                 if (MessageBox.Show($"Delete profile '{profileName}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
-                    Globals.Profiles.Configuration.Remove(profileName);
-                    File.WriteAllText(Globals.game_config_path, JsonSerializer.Serialize(Globals.Profiles));
+                    Globals.Config.Configuration.Profiles.Entries.RemoveAll(p => p.Name == profileName);
                     Globals.SelectedProfile = "Default";
+                    ConfigStore.SaveAll();
                     Load_Profiles(self);
                 }
             }
