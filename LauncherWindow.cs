@@ -1,9 +1,9 @@
-﻿namespace Doom_Launcher_Project
+﻿namespace DoomLauncherProject
 {
-    public partial class Launcher_Window : Form
+    public partial class LauncherWindow : Form
     {
         //loads the whole frame and all the components
-        public Launcher_Window()
+        public LauncherWindow()
         {
             InitializeComponent();
             //restores the saved window position/size before the form is first shown
@@ -115,13 +115,13 @@
             SyncConfig();
         }
 
-        private void Launcher_Window_FormClosed(object sender, FormClosedEventArgs e)
+        private void LauncherWindow_FormClosed(object sender, FormClosedEventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.Save_GameOptions(this);
         }
 
-        private void Launcher_Window_FormClosing(object? sender, FormClosingEventArgs e)
+        private void LauncherWindow_FormClosing(object? sender, FormClosingEventArgs e)
         {
             // Capture bounds before the window actually closes/minimizes, since
             // RestoreBounds/WindowState are no longer reliable once the handle is torn down.
@@ -129,7 +129,7 @@
             window_options.SaveWindowSettings(this);
         }
 
-        private void Launcher_Window_Click(object sender, EventArgs e)
+        private void LauncherWindow_Click(object sender, EventArgs e)
         {
             SyncConfig();
         }

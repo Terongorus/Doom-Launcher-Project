@@ -2,15 +2,15 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <RootNamespace>Doom_Launcher_Project</RootNamespace>
-    <AssemblyName>Teron's Doom Launcher</AssemblyName>
+    <RootNamespace>DoomLauncherProject</RootNamespace>
+    <AssemblyName>DoomLauncherProject</AssemblyName>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Deterministic>true</Deterministic>
     <ApplicationIcon>TDL.ico</ApplicationIcon>
-    <StartupObject>Doom_Launcher_Project.Init</StartupObject>
+    <StartupObject>DoomLauncherProject.Init</StartupObject>
     <Version>1.6.1</Version>
     <FileVersion>1.6.1</FileVersion>
     <Company>Teronverse</Company>

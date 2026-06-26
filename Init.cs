@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Forms;
 
-namespace Doom_Launcher_Project
+namespace DoomLauncherProject
 {
     public static class  Globals
     {
@@ -165,7 +165,7 @@ namespace Doom_Launcher_Project
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Launcher_Window());
+            Application.Run(new LauncherWindow());
         }
     }
 }

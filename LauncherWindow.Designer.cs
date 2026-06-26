@@ -1,6 +1,6 @@
-﻿namespace Doom_Launcher_Project
+﻿namespace DoomLauncherProject
 {
-    partial class Launcher_Window
+    partial class LauncherWindow
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Launcher_Window));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(LauncherWindow));
             menu_control = new TabControl();
             profiles_tab = new TabPage();
             profiles_container = new TableLayoutPanel();
@@ -942,9 +942,9 @@
             launcher_container.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
             launcher_container.Size = new Size(993, 679);
             launcher_container.TabIndex = 14;
-            // 
-            // Launcher_Window
-            // 
+            //
+            // LauncherWindow
+            //
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             AutoSize = true;
@@ -954,11 +954,11 @@
             Controls.Add(launcher_container);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Margin = new Padding(4, 3, 4, 3);
-            Name = "Launcher_Window";
+            Name = "LauncherWindow";
             Text = "Form1";
-            FormClosing += Launcher_Window_FormClosing;
-            FormClosed += Launcher_Window_FormClosed;
-            Click += Launcher_Window_Click;
+            FormClosing += LauncherWindow_FormClosing;
+            FormClosed += LauncherWindow_FormClosed;
+            Click += LauncherWindow_Click;
             menu_control.ResumeLayout(false);
             profiles_tab.ResumeLayout(false);
             profiles_tab.PerformLayout();

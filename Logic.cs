@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.VisualBasic.ApplicationServices;
 using System.Reflection;
 
-namespace Doom_Launcher_Project
+namespace DoomLauncherProject
 {
     // Parses the raw WAD binary format (header + lump directory) instead of matching
     // against hardcoded filename/lump lists.
@@ -224,7 +224,7 @@ namespace Doom_Launcher_Project
     // Persists/restores the main window's position, size, and maximized state across runs.
     public class Window_Options
     {
-        public void LoadWindowSettings(Launcher_Window self)
+        public void LoadWindowSettings(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -252,7 +252,7 @@ namespace Doom_Launcher_Project
                 self.WindowState = FormWindowState.Maximized;
         }
 
-        public void SaveWindowSettings(Launcher_Window self)
+        public void SaveWindowSettings(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -272,7 +272,7 @@ namespace Doom_Launcher_Project
 
     public class WAD_Options
     {
-        public void AddWADs(Launcher_Window self)
+        public void AddWADs(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -348,7 +348,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Load_WADs(Launcher_Window self)
+        public void Load_WADs(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -378,7 +378,7 @@ namespace Doom_Launcher_Project
             game_options.Load_WADsToList(self);
         }
 
-        public void Remove_WAD(Launcher_Window self)
+        public void Remove_WAD(LauncherWindow self)
         {
             if (self.wads_list == null || self.wads_list.SelectedIndices.Count == 0)
             {
@@ -419,7 +419,7 @@ namespace Doom_Launcher_Project
             MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        public void Edit_WAD(Launcher_Window self)
+        public void Edit_WAD(LauncherWindow self)
         {
             if (self.wads_list?.SelectedItem == null)
             {
@@ -440,7 +440,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        private void EditWadEntry(Launcher_Window self, Globals.WADListStructure wad)
+        private void EditWadEntry(LauncherWindow self, Globals.WADListStructure wad)
         {
             Form dialog = new Form()
             {
@@ -487,7 +487,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        private void EditModEntry(Launcher_Window self, Globals.ModsListStructure mod)
+        private void EditModEntry(LauncherWindow self, Globals.ModsListStructure mod)
         {
             Form dialog = new Form()
             {
@@ -565,7 +565,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void AddEngines(Launcher_Window self)
+        public void AddEngines(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -606,7 +606,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Load_Engines(Launcher_Window self)
+        public void Load_Engines(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -648,7 +648,7 @@ namespace Doom_Launcher_Project
             game_options.Load_EnginesToList(self);
         }
 
-        public void Remove_Engine(Launcher_Window self)
+        public void Remove_Engine(LauncherWindow self)
         {
             if (self.engines_list?.SelectedItem != null && Globals.EnginesList != null)
             {
@@ -671,7 +671,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Edit_Engine(Launcher_Window self)
+        public void Edit_Engine(LauncherWindow self)
         {
             if (self.engines_list?.SelectedItem == null || Globals.EnginesList == null)
             {
@@ -755,7 +755,7 @@ namespace Doom_Launcher_Project
 
     public class Mods_Options
     {
-        public void AddMods(Launcher_Window self)
+        public void AddMods(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -795,7 +795,7 @@ namespace Doom_Launcher_Project
                 return;
             }
         }
-        public void Load_Mods(Launcher_Window self)
+        public void Load_Mods(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -810,7 +810,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Remove_Mod(Launcher_Window self)
+        public void Remove_Mod(LauncherWindow self)
         {
             if (self.mods_selection != null && self.mods_selection.SelectedItem != null && Globals.ModsList != null)
             {
@@ -833,7 +833,7 @@ namespace Doom_Launcher_Project
 
     public class Game_Options
     {
-        public Globals.GameConfigStructure GetConfigFromUI(Launcher_Window self)
+        public Globals.GameConfigStructure GetConfigFromUI(LauncherWindow self)
         {
             return new Globals.GameConfigStructure
             {
@@ -856,14 +856,14 @@ namespace Doom_Launcher_Project
             };
         }
 
-        public void ProductDetails(Launcher_Window self)
+        public void ProductDetails(LauncherWindow self)
         {
             string ProductName = Assembly.GetExecutingAssembly().GetName().Name ?? "Unknown";
             string ProductVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
             self.Text = $"{ProductName} - v{ProductVersion}";
         }
 
-        public void OnlineModeEnable(Launcher_Window self)
+        public void OnlineModeEnable(LauncherWindow self)
         {
             if (self.enable_multiplayer?.Checked == true)
             {
@@ -916,7 +916,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Save_GameOptions(Launcher_Window self)
+        public void Save_GameOptions(LauncherWindow self)
         {
             // If we are currently loading the config into the UI, do not save.
             // This prevents programmatic UI changes from overwriting the JSON with empty values.
@@ -936,7 +936,7 @@ namespace Doom_Launcher_Project
             ConfigStore.SaveAll();
         }
 
-        public void Load_GameOptions(Launcher_Window self)
+        public void Load_GameOptions(LauncherWindow self)
         {
             if (self.wad_selection.Items == null || self.engine_selection.Items == null)
                 return;
@@ -1054,7 +1054,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Load_WADsToList(Launcher_Window self)
+        public void Load_WADsToList(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -1068,7 +1068,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Load_EnginesToList(Launcher_Window self)
+        public void Load_EnginesToList(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -1081,7 +1081,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void Load_OnlineGameplayModes(Launcher_Window self)
+        public void Load_OnlineGameplayModes(LauncherWindow self)
         {
             //populate the game mode selection
             self.multiplayer_game_mode_select?.Items.Clear();
@@ -1090,7 +1090,7 @@ namespace Doom_Launcher_Project
             self.multiplayer_game_mode_select?.Items.Add("Alt Deathmatch");
         }
 
-        public void Load_PlayerSelectList(Launcher_Window self)
+        public void Load_PlayerSelectList(LauncherWindow self)
         {
             //populate the players (host/join) selection
             self.players_host_select?.Items.Clear();
@@ -1102,7 +1102,7 @@ namespace Doom_Launcher_Project
             self.players_host_select?.Items.Add("(More)");
         }
 
-        public void Load_SkillLevelsToList(Launcher_Window self)
+        public void Load_SkillLevelsToList(LauncherWindow self)
         {
             self.difficulty_selection?.Items.Clear();
             self.difficulty_selection?.Items.Add("(Default)");
@@ -1113,7 +1113,7 @@ namespace Doom_Launcher_Project
             self.difficulty_selection?.Items.Add("Very Hard");
         }
 
-        public void Load_MapsToList(Launcher_Window self)
+        public void Load_MapsToList(LauncherWindow self)
         {
             if (self.wad_selection?.SelectedItem?.ToString() is string selectedWad && selectedWad != "(None)")
             {
@@ -1148,7 +1148,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void GenerateExecutable(Launcher_Window self)
+        public void GenerateExecutable(LauncherWindow self)
         {
             ConfigStore.LoadAll();
             {
@@ -1401,7 +1401,7 @@ namespace Doom_Launcher_Project
             return string.Empty;
         }
 
-        public void PlayGame(Launcher_Window self)
+        public void PlayGame(LauncherWindow self)
         {
             this.GenerateExecutable(self);
             try
@@ -1425,7 +1425,7 @@ namespace Doom_Launcher_Project
 
     public class Profile_Options
     {
-        public void Load_Profiles(Launcher_Window self)
+        public void Load_Profiles(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
@@ -1453,7 +1453,7 @@ namespace Doom_Launcher_Project
         // Renders a quick read-only preview of the selected profile's saved settings
         // (from launcher_config.json) into profile_details_textbox, so the user can see
         // what they're about to launch without switching to the Game Options tab.
-        public void UpdateProfileDetails(Launcher_Window self)
+        public void UpdateProfileDetails(LauncherWindow self)
         {
             RichTextBox details = self.profile_details_textbox;
             details.Clear();
@@ -1550,7 +1550,7 @@ namespace Doom_Launcher_Project
             rtb.AppendText(value + "\n");
         }
 
-        public void AddProfile(Launcher_Window self)
+        public void AddProfile(LauncherWindow self)
         {
             string profileName = Prompt.ShowDialog("Enter profile name:", "New Profile");
             if (!string.IsNullOrWhiteSpace(profileName))
@@ -1571,7 +1571,7 @@ namespace Doom_Launcher_Project
             }
         }
 
-        public void RemoveProfile(Launcher_Window self)
+        public void RemoveProfile(LauncherWindow self)
         {
             if (self.profile_select.SelectedItem != null)
             {

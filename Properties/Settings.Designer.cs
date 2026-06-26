@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Doom_Launcher_Project.Properties
+namespace DoomLauncherProject.Properties
 {
 
 
