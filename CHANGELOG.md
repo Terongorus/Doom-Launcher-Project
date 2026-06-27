@@ -9,7 +9,7 @@ Versions follow major.minor.hotfix (e.g. 1.2.3).
 
 ### Changed
 
-- Converged the project's naming onto a single consistent identity (codename ARCHIVIST): the
+- Converged the project's naming onto a single consistent identity: the
   repo is now `Doom_Launcher_Project` on disk and on GitHub (previously `Doom Launcher Project`
   locally and `Doom-Launcher-Project` on GitHub), the project file is `DoomLauncherProject.csproj`
   (previously `Teron Doom Launcher.csproj`), the root namespace is `DoomLauncherProject`
