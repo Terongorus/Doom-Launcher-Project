@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Forms;
 
-namespace DoomLauncherProject
+namespace TeronDoomLauncher
 {
     public static class  Globals
     {

@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.VisualBasic.ApplicationServices;
 using System.Reflection;
 
-namespace DoomLauncherProject
+namespace TeronDoomLauncher
 {
     // Parses the raw WAD binary format (header + lump directory) instead of matching
     // against hardcoded filename/lump lists.

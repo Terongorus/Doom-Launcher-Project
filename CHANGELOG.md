@@ -5,6 +5,18 @@ All notable changes to Teron's Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [1.7.1] - 2026-06-28
+
+### Changed
+
+- Corrected the project's technical identity from `DoomLauncherProject` to `TeronDoomLauncher`
+  — the actual product name, matching the `Teron*` prefix used by every other identity layer
+  (display name, installer output, publish directories). `DoomLauncherProject.csproj`/`.sln`
+  are now `TeronDoomLauncher.csproj`/`.sln`, the root namespace and `AssemblyName` are
+  `TeronDoomLauncher`, and the installer is `TeronDoomLauncher-<arch>.exe`.
+- The repo and local folder were also renamed from `Doom_Launcher_Project` to
+  `Teron_Doom_Launcher` to match, so every layer now uses the same name consistently.
+
 ## [1.7.0] - 2026-06-27
 
 ### Added
