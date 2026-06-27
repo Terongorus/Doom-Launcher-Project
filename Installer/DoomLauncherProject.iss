@@ -22,7 +22,7 @@
 #define MyAppName "Teron's Doom Launcher"
 #define MyAppPublisher "Teronverse"
 #define MyAppExeName "DoomLauncherProject.exe"
-#define MyPublishDir "..\bin\Publish\TDL_Win_" + Arch
+#define MyPublishDir "..\bin\Publish\TeronDoomLauncher_Win_" + Arch
 
 [Setup]
 AppId={{B6EC303A-AFD9-4B98-AD07-34A30D2B4BC4}
