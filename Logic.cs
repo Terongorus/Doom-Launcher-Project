@@ -858,7 +858,14 @@ namespace TeronDoomLauncher
 
         public void ProductDetails(LauncherWindow self)
         {
-            string ProductName = Assembly.GetExecutingAssembly().GetName().Name ?? "Unknown";
+            // Read from the assembly's <Product> metadata (set in TeronDoomLauncher.csproj)
+            // rather than the technical assembly name, so the title bar shows the actual
+            // product name and can't drift out of sync with the project file. The "(TDL)"
+            // abbreviation suffix is dropped for the title bar.
+            string product = ((AssemblyProductAttribute?)Attribute.GetCustomAttribute(
+                Assembly.GetExecutingAssembly(), typeof(AssemblyProductAttribute)))?.Product ?? "TeronDoomLauncher";
+            int parenIndex = product.IndexOf(" (", StringComparison.Ordinal);
+            string ProductName = parenIndex > 0 ? product[..parenIndex] : product;
             string ProductVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
             self.Text = $"{ProductName} - v{ProductVersion}";
         }

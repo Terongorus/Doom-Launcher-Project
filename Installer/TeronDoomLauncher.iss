@@ -1,4 +1,4 @@
-; Inno Setup script for Teron's Doom Launcher.
+; Inno Setup script for Teron Doom Launcher.
 ;
 ; Normally you don't need to run this directly: publishing the win-x64 or win-x86 profile
 ; (via "dotnet publish -p:PublishProfile=win-x64" or Visual Studio's Publish dialog) builds
@@ -16,10 +16,10 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.7.1"
+  #define MyAppVersion "1.7.2"
 #endif
 
-#define MyAppName "Teron's Doom Launcher"
+#define MyAppName "Teron Doom Launcher"
 #define MyAppPublisher "Teronverse"
 #define MyAppExeName "TeronDoomLauncher.exe"
 #define MyPublishDir "..\bin\Publish\TeronDoomLauncher_Win_" + Arch

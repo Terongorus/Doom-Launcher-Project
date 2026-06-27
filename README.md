@@ -1,4 +1,4 @@
-# Doom Launcher Project
+# Teron Doom Launcher (TDL)
 
 ## What is this project?
 

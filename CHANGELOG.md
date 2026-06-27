@@ -1,9 +1,20 @@
 # Changelog
 
-All notable changes to Teron's Doom Launcher are documented in this file.
+All notable changes to Teron Doom Launcher are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
+
+## [1.7.2] - 2026-06-28
+
+### Changed
+
+- Dropped the possessive form: the app's display name is now "Teron Doom Launcher (TDL)"
+  instead of "Teron's Doom Launcher (TDL)", matching the non-possessive naming used across
+  this user's other apps.
+- The main window title (set in `Game_Options.ProductDetails`) was reading the technical
+  assembly name instead of the actual `<Product>` value — fixed to read the real product name
+  from the assembly's metadata, so it can't drift from the project file again.
 
 ## [1.7.1] - 2026-06-28
 
