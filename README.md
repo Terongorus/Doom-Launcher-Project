@@ -65,3 +65,42 @@ On this image you can see the Launcher Options Panel:
 
 - Game launch command text box -> this component can be seen in the bottom part of the application; it shows the command which the launcher is going to execute (updated every 1 second)
 - Play button -> this component will use the game execution command and launch your game (single or multiplayer)
+
+## Building and running
+
+```bash
+dotnet build
+dotnet run
+```
+
+## Publishing a standalone build
+
+Self-contained, single-file publish profiles are included for both architectures, so the
+result is a single `.exe` with no separate .NET runtime install required:
+
+```bash
+dotnet publish -p:PublishProfile=win-x64 -c Release
+dotnet publish -p:PublishProfile=win-x86 -c Release
+```
+
+### Installer package
+
+Publishing also builds a ready-to-distribute Windows installer automatically — no separate
+step required. It uses [Inno Setup](https://jrsoftware.org/isinfo.php), so install it once
+first:
+
+```bash
+winget install JRSoftware.InnoSetup
+```
+
+After that, every `dotnet publish -p:PublishProfile=win-x64` (or the Visual Studio Publish
+button) also produces:
+
+```text
+bin\InstallerPackage\DoomLauncherProjectSetup-x64.exe
+```
+
+That single file is what you'd attach to a GitHub release. If Inno Setup isn't installed, this
+step is skipped with a build warning — the publish itself still succeeds. See
+`Installer/DoomLauncherProject.iss` for the packaging script and the `BuildInnoSetupInstaller`
+MSBuild target in `DoomLauncherProject.csproj` for how it's wired into the publish pipeline.
