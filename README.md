@@ -97,7 +97,7 @@ After that, every `dotnet publish -p:PublishProfile=win-x64` (or the Visual Stud
 button) also produces:
 
 ```text
-bin\InstallerPackage\TeronDoomLauncher-x64.exe
+bin\InstallerPackage\TeronDoomLauncherSetup-x64.exe
 ```
 
 That single file is what you'd attach to a GitHub release. If Inno Setup isn't installed, this
