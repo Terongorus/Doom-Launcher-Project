@@ -5,6 +5,17 @@ All notable changes to Teron Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [1.7.3] - 2026-06-28
+
+### Changed
+
+- The main window title now also shows the app version, e.g. "Teron Doom Launcher v1.7.3",
+  matching the title bar format used across this user's other apps. The version is read from
+  `AssemblyInformationalVersion` (sourced from `<Version>`) rather than `AssemblyVersion`,
+  since the CLR always pads the latter to four numeric parts regardless of what's written in
+  the project file - and `IncludeSourceRevisionInInformationalVersion` is now disabled, since
+  the SDK otherwise appends a `+<git-commit-sha>` suffix to that same value by default.
+
 ## [1.7.2] - 2026-06-28
 
 ### Changed

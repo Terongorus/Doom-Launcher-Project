@@ -858,16 +858,19 @@ namespace TeronDoomLauncher
 
         public void ProductDetails(LauncherWindow self)
         {
-            // Read from the assembly's <Product> metadata (set in TeronDoomLauncher.csproj)
-            // rather than the technical assembly name, so the title bar shows the actual
-            // product name and can't drift out of sync with the project file. The "(TDL)"
-            // abbreviation suffix is dropped for the title bar.
+            // Read from the assembly's metadata (set in TeronDoomLauncher.csproj) rather than
+            // duplicating the name/version as hardcoded literals, so the title bar can't drift
+            // out of sync with the project file. The "(TDL)" abbreviation suffix is dropped for
+            // the title bar. AssemblyInformationalVersion (from <Version>) is used instead of
+            // AssemblyVersion, since the CLR always pads the latter to four numeric parts
+            // regardless of what's written in the project file.
             string product = ((AssemblyProductAttribute?)Attribute.GetCustomAttribute(
                 Assembly.GetExecutingAssembly(), typeof(AssemblyProductAttribute)))?.Product ?? "TeronDoomLauncher";
             int parenIndex = product.IndexOf(" (", StringComparison.Ordinal);
             string ProductName = parenIndex > 0 ? product[..parenIndex] : product;
-            string ProductVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-            self.Text = $"{ProductName} - v{ProductVersion}";
+            string ProductVersion = ((AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute(
+                Assembly.GetExecutingAssembly(), typeof(AssemblyInformationalVersionAttribute)))?.InformationalVersion ?? "0.0.0";
+            self.Text = $"{ProductName} v{ProductVersion}";
         }
 
         public void OnlineModeEnable(LauncherWindow self)

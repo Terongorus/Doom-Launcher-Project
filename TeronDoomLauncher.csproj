@@ -9,15 +9,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Deterministic>true</Deterministic>
+    <!-- Without this, the SDK appends "+<git-commit-sha>" to AssemblyInformationalVersion
+         (read for the main window title), since Deterministic builds in a git repo include
+         source revision info there by default. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>TDL.ico</ApplicationIcon>
     <StartupObject>TeronDoomLauncher.Init</StartupObject>
-    <Version>1.7.2</Version>
-    <FileVersion>1.7.2</FileVersion>
+    <Version>1.7.3</Version>
+    <FileVersion>1.7.3</FileVersion>
     <Company>Teronverse</Company>
     <Product>Teron Doom Launcher (TDL)</Product>
     <Description>DooM launcher for GZDooM and ZDooM and other ports of the original DooM engine</Description>
     <Copyright>Copyright © 2025</Copyright>
-    <AssemblyVersion>1.7.2</AssemblyVersion>
+    <AssemblyVersion>1.7.3</AssemblyVersion>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
