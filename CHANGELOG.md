@@ -5,6 +5,15 @@ All notable changes to Teron Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [1.9.0] - 2026-06-28
+
+### Added
+
+- Unhandled exceptions are now logged to `%LocalAppData%\TeronDoomLauncher\error.log` instead of
+  crashing with no record of what happened.
+- The launcher now refuses to run a second instance at once, showing a notice instead of opening
+  a second window that would race the first over `launcher_config.json`.
+
 ## [1.8.0] - 2026-06-28
 
 ### Changed
