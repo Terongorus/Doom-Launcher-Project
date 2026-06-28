@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.VisualBasic.ApplicationServices;
 using System.Reflection;
 
-namespace DoomLauncherProject
+namespace TeronDoomLauncher
 {
     // Parses the raw WAD binary format (header + lump directory) instead of matching
     // against hardcoded filename/lump lists.
@@ -134,6 +134,7 @@ namespace DoomLauncherProject
             AssignSequentialIds(Globals.Config.Configuration.Profiles.Entries, (p, id) => p.Id = id);
             AssignSequentialIds(Globals.Config.Configuration.WADLevelsCache, (c, id) => c.Id = id);
 
+            Directory.CreateDirectory(Globals.appdata_folder);
             File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(Globals.Config, Globals.JsonOptions));
         }
 
@@ -208,6 +209,7 @@ namespace DoomLauncherProject
             AssignSequentialIds(root.Configuration.Profiles.Entries, (p, id) => p.Id = id);
             AssignSequentialIds(root.Configuration.WADLevelsCache, (c, id) => c.Id = id);
 
+            Directory.CreateDirectory(Globals.appdata_folder);
             File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(root, Globals.JsonOptions));
         }
 
@@ -858,9 +860,19 @@ namespace DoomLauncherProject
 
         public void ProductDetails(LauncherWindow self)
         {
-            string ProductName = Assembly.GetExecutingAssembly().GetName().Name ?? "Unknown";
-            string ProductVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-            self.Text = $"{ProductName} - v{ProductVersion}";
+            // Read from the assembly's metadata (set in TeronDoomLauncher.csproj) rather than
+            // duplicating the name/version as hardcoded literals, so the title bar can't drift
+            // out of sync with the project file. The "(TDL)" abbreviation suffix is dropped for
+            // the title bar. AssemblyInformationalVersion (from <Version>) is used instead of
+            // AssemblyVersion, since the CLR always pads the latter to four numeric parts
+            // regardless of what's written in the project file.
+            string product = ((AssemblyProductAttribute?)Attribute.GetCustomAttribute(
+                Assembly.GetExecutingAssembly(), typeof(AssemblyProductAttribute)))?.Product ?? "TeronDoomLauncher";
+            int parenIndex = product.IndexOf(" (", StringComparison.Ordinal);
+            string ProductName = parenIndex > 0 ? product[..parenIndex] : product;
+            string ProductVersion = ((AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute(
+                Assembly.GetExecutingAssembly(), typeof(AssemblyInformationalVersionAttribute)))?.InformationalVersion ?? "0.0.0";
+            self.Text = $"{ProductName} v{ProductVersion}";
         }
 
         public void OnlineModeEnable(LauncherWindow self)

@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel; // <-- Add this using directive
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Windows.Forms;
 
-namespace DoomLauncherProject
+namespace TeronDoomLauncher
 {
     public static class  Globals
     {
@@ -16,7 +18,13 @@ namespace DoomLauncherProject
         public static string game_launch_command = string.Empty;
         public static string SelectedProfile = "Default";
         public static RootConfig Config = new RootConfig();
-        public static string launcher_config_path = "launcher_config.json";
+
+        // Local (not Roaming) AppData, matching this user's other apps - single-machine
+        // settings shouldn't roam, and writing next to the installed .exe (the old behavior)
+        // could fail for non-admin users since Program Files isn't normally writable.
+        public static readonly string appdata_folder =
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeronDoomLauncher");
+        public static string launcher_config_path = System.IO.Path.Combine(appdata_folder, "launcher_config.json");
         public static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
         // Legacy per-feature files. Referenced only by ConfigStore.MigrateLegacyFiles,
@@ -157,15 +165,63 @@ namespace DoomLauncherProject
 
     internal static class Init
     {
+        private static Mutex? _singleInstanceMutex;
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
         static void Main()
         {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += (_, args) => LogException(args.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                    LogException(ex);
+            };
+
+            _singleInstanceMutex = new Mutex(true, "TeronDoomLauncher.SingleInstance", out bool createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show(
+                    $"{GetDisplayName()} is already running.",
+                    GetDisplayName(),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new LauncherWindow());
+
+            _singleInstanceMutex.ReleaseMutex();
+        }
+
+        // Reads from the assembly's <Product> metadata (set in TeronDoomLauncher.csproj) rather
+        // than a hardcoded literal, so it can't drift from the project file. The "(TDL)"
+        // abbreviation suffix is dropped, matching the main window title bar.
+        private static string GetDisplayName()
+        {
+            string product = ((AssemblyProductAttribute?)Attribute.GetCustomAttribute(
+                Assembly.GetExecutingAssembly(), typeof(AssemblyProductAttribute)))?.Product ?? "TeronDoomLauncher";
+            int parenIndex = product.IndexOf(" (", StringComparison.Ordinal);
+            return parenIndex > 0 ? product[..parenIndex] : product;
+        }
+
+        private static void LogException(Exception ex)
+        {
+            try
+            {
+                string logPath = System.IO.Path.Combine(Globals.appdata_folder, "error.log");
+                System.IO.Directory.CreateDirectory(Globals.appdata_folder);
+                System.IO.File.AppendAllText(logPath, $"{DateTime.Now:O}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Logging is best-effort; nothing else we can do if it fails.
+            }
         }
     }
 }

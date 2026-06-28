@@ -1,4 +1,4 @@
-﻿namespace DoomLauncherProject
+﻿namespace TeronDoomLauncher
 {
     public partial class LauncherWindow : Form
     {

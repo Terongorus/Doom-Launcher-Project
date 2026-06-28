@@ -1,4 +1,4 @@
-# Doom Launcher Project
+# Teron Doom Launcher (TDL)
 
 ## What is this project?
 
@@ -97,10 +97,10 @@ After that, every `dotnet publish -p:PublishProfile=win-x64` (or the Visual Stud
 button) also produces:
 
 ```text
-bin\InstallerPackage\DoomLauncherProjectSetup-x64.exe
+bin\InstallerPackage\TeronDoomLauncher-x64.exe
 ```
 
 That single file is what you'd attach to a GitHub release. If Inno Setup isn't installed, this
 step is skipped with a build warning — the publish itself still succeeds. See
-`Installer/DoomLauncherProject.iss` for the packaging script and the `BuildInnoSetupInstaller`
-MSBuild target in `DoomLauncherProject.csproj` for how it's wired into the publish pipeline.
+`Installer/TeronDoomLauncher.iss` for the packaging script and the `BuildInnoSetupInstaller`
+MSBuild target in `TeronDoomLauncher.csproj` for how it's wired into the publish pipeline.

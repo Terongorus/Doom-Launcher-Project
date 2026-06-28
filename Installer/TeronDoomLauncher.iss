@@ -1,27 +1,27 @@
-; Inno Setup script for Teron's Doom Launcher.
+; Inno Setup script for Teron Doom Launcher.
 ;
 ; Normally you don't need to run this directly: publishing the win-x64 or win-x86 profile
 ; (via "dotnet publish -p:PublishProfile=win-x64" or Visual Studio's Publish dialog) builds
 ; this automatically as a post-publish MSBuild step - see the BuildInnoSetupInstaller target
-; in DoomLauncherProject.csproj. The lines below are only needed to run it manually:
+; in TeronDoomLauncher.csproj. The lines below are only needed to run it manually:
 ;   dotnet publish -p:PublishProfile=win-x64 -c Release
 ;   dotnet publish -p:PublishProfile=win-x86 -c Release
-;   ISCC DoomLauncherProject.iss              (defaults to x64)
-;   ISCC /DArch=x86 DoomLauncherProject.iss    (x86 build)
+;   ISCC TeronDoomLauncher.iss              (defaults to x64)
+;   ISCC /DArch=x86 TeronDoomLauncher.iss    (x86 build)
 ;
-; Output goes to bin\InstallerPackage\DoomLauncherProjectSetup-<arch>.exe
+; Output goes to bin\InstallerPackage\TeronDoomLauncher-<arch>.exe
 
 #ifndef Arch
   #define Arch "x64"
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.7.0"
+  #define MyAppVersion "1.9.0"
 #endif
 
-#define MyAppName "Teron's Doom Launcher"
+#define MyAppName "Teron Doom Launcher"
 #define MyAppPublisher "Teronverse"
-#define MyAppExeName "DoomLauncherProject.exe"
+#define MyAppExeName "TeronDoomLauncher.exe"
 #define MyPublishDir "..\bin\Publish\TeronDoomLauncher_Win_" + Arch
 
 [Setup]
@@ -29,7 +29,7 @@ AppId={{B6EC303A-AFD9-4B98-AD07-34A30D2B4BC4}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\DoomLauncherProject
+DefaultDirName={autopf}\TeronDoomLauncher
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE.txt

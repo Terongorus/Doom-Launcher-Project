@@ -1,9 +1,67 @@
 # Changelog
 
-All notable changes to Teron's Doom Launcher are documented in this file.
+All notable changes to Teron Doom Launcher are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
+
+## [1.9.0] - 2026-06-28
+
+### Added
+
+- Unhandled exceptions are now logged to `%LocalAppData%\TeronDoomLauncher\error.log` instead of
+  crashing with no record of what happened.
+- The launcher now refuses to run a second instance at once, showing a notice instead of opening
+  a second window that would race the first over `launcher_config.json`.
+
+## [1.8.0] - 2026-06-28
+
+### Changed
+
+- `launcher_config.json` now lives in `%LocalAppData%\TeronDoomLauncher\` instead of next to
+  the running `.exe`. The old location depended on the launcher's current working directory,
+  which isn't guaranteed to be writable (e.g. a non-admin user running it from
+  `C:\Program Files\TeronDoomLauncher\`) and isn't per-user-safe if the install is shared.
+  **If you have an existing `launcher_config.json` next to your installed `TeronDoomLauncher.exe`,
+  copy it to `%LocalAppData%\TeronDoomLauncher\launcher_config.json` (create the folder if it
+  doesn't exist yet) to keep your profiles, engines, WADs, and mods list.** The legacy
+  per-feature files (`wad_config.json`, `engine_config.json`, etc.) are unaffected — that
+  migration path still looks next to the `.exe` as before, since it only matters for very old
+  installs predating the single combined config file.
+
+## [1.7.3] - 2026-06-28
+
+### Changed
+
+- The main window title now also shows the app version, e.g. "Teron Doom Launcher v1.7.3",
+  matching the title bar format used across this user's other apps. The version is read from
+  `AssemblyInformationalVersion` (sourced from `<Version>`) rather than `AssemblyVersion`,
+  since the CLR always pads the latter to four numeric parts regardless of what's written in
+  the project file - and `IncludeSourceRevisionInInformationalVersion` is now disabled, since
+  the SDK otherwise appends a `+<git-commit-sha>` suffix to that same value by default.
+
+## [1.7.2] - 2026-06-28
+
+### Changed
+
+- Dropped the possessive form: the app's display name is now "Teron Doom Launcher (TDL)"
+  instead of "Teron's Doom Launcher (TDL)", matching the non-possessive naming used across
+  this user's other apps.
+- The main window title (set in `Game_Options.ProductDetails`) was reading the technical
+  assembly name instead of the actual `<Product>` value — fixed to read the real product name
+  from the assembly's metadata, so it can't drift from the project file again.
+
+## [1.7.1] - 2026-06-28
+
+### Changed
+
+- Corrected the project's technical identity from `DoomLauncherProject` to `TeronDoomLauncher`
+  — the actual product name, matching the `Teron*` prefix used by every other identity layer
+  (display name, installer output, publish directories). `DoomLauncherProject.csproj`/`.sln`
+  are now `TeronDoomLauncher.csproj`/`.sln`, the root namespace and `AssemblyName` are
+  `TeronDoomLauncher`, and the installer is `TeronDoomLauncher-<arch>.exe`.
+- The repo and local folder were also renamed from `Doom_Launcher_Project` to
+  `Teron_Doom_Launcher` to match, so every layer now uses the same name consistently.
 
 ## [1.7.0] - 2026-06-27
 
