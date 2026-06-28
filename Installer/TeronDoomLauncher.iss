@@ -16,7 +16,7 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.7.3"
+  #define MyAppVersion "1.8.0"
 #endif
 
 #define MyAppName "Teron Doom Launcher"

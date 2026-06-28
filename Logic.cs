@@ -134,6 +134,7 @@ namespace TeronDoomLauncher
             AssignSequentialIds(Globals.Config.Configuration.Profiles.Entries, (p, id) => p.Id = id);
             AssignSequentialIds(Globals.Config.Configuration.WADLevelsCache, (c, id) => c.Id = id);
 
+            Directory.CreateDirectory(Globals.appdata_folder);
             File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(Globals.Config, Globals.JsonOptions));
         }
 
@@ -208,6 +209,7 @@ namespace TeronDoomLauncher
             AssignSequentialIds(root.Configuration.Profiles.Entries, (p, id) => p.Id = id);
             AssignSequentialIds(root.Configuration.WADLevelsCache, (c, id) => c.Id = id);
 
+            Directory.CreateDirectory(Globals.appdata_folder);
             File.WriteAllText(Globals.launcher_config_path, JsonSerializer.Serialize(root, Globals.JsonOptions));
         }
 

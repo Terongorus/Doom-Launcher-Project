@@ -5,6 +5,21 @@ All notable changes to Teron Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [1.8.0] - 2026-06-28
+
+### Changed
+
+- `launcher_config.json` now lives in `%LocalAppData%\TeronDoomLauncher\` instead of next to
+  the running `.exe`. The old location depended on the launcher's current working directory,
+  which isn't guaranteed to be writable (e.g. a non-admin user running it from
+  `C:\Program Files\TeronDoomLauncher\`) and isn't per-user-safe if the install is shared.
+  **If you have an existing `launcher_config.json` next to your installed `TeronDoomLauncher.exe`,
+  copy it to `%LocalAppData%\TeronDoomLauncher\launcher_config.json` (create the folder if it
+  doesn't exist yet) to keep your profiles, engines, WADs, and mods list.** The legacy
+  per-feature files (`wad_config.json`, `engine_config.json`, etc.) are unaffected — that
+  migration path still looks next to the `.exe` as before, since it only matters for very old
+  installs predating the single combined config file.
+
 ## [1.7.3] - 2026-06-28
 
 ### Changed

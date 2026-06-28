@@ -16,7 +16,13 @@ namespace TeronDoomLauncher
         public static string game_launch_command = string.Empty;
         public static string SelectedProfile = "Default";
         public static RootConfig Config = new RootConfig();
-        public static string launcher_config_path = "launcher_config.json";
+
+        // Local (not Roaming) AppData, matching this user's other apps - single-machine
+        // settings shouldn't roam, and writing next to the installed .exe (the old behavior)
+        // could fail for non-admin users since Program Files isn't normally writable.
+        public static readonly string appdata_folder =
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeronDoomLauncher");
+        public static string launcher_config_path = System.IO.Path.Combine(appdata_folder, "launcher_config.json");
         public static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
         // Legacy per-feature files. Referenced only by ConfigStore.MigrateLegacyFiles,
