@@ -5,6 +5,14 @@ All notable changes to Teron Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [2.0.1] - 2026-08-24
+
+### Changed
+
+- Renamed several internal classes to plain PascalCase (`WindowOptions`, `WADOptions`,
+  `EngineOptions`, `ModsOptions`, `GameOptions`, `ProfileOptions`), matching this developer's
+  naming convention. Internal-only change, no user-facing behavior difference.
+
 ## [2.0.0] - 2026-08-24
 
 UI rewrite from Windows Forms to WPF, following this developer's portfolio-wide move away from

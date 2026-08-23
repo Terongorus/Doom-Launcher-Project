@@ -13,27 +13,27 @@ namespace TeronDoomLauncher
         {
             InitializeComponent();
             //restores the saved window position/size before the form is first shown
-            Window_Options window_options = new Window_Options();
+            WindowOptions window_options = new WindowOptions();
             window_options.LoadWindowSettings(this);
 
-            Game_Options product_details = new Game_Options();
+            GameOptions product_details = new GameOptions();
             product_details.ProductDetails(this);
             //loads the WADs from the config files
-            WAD_Options wad_options = new WAD_Options();
+            WADOptions wad_options = new WADOptions();
             wad_options.Load_WADs(this);
             //loads the engines from the config files
-            Engine_Options engine_options = new Engine_Options();
+            EngineOptions engine_options = new EngineOptions();
             engine_options.Load_Engines(this);
             //loads the mods from the config files
-            Mods_Options mods_options = new Mods_Options();
+            ModsOptions mods_options = new ModsOptions();
             mods_options.Load_Mods(this);
             //loads the skill levels into the skill level dropdown menu
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Load_SkillLevelsToList(this);
             game_options.Load_OnlineGameplayModes(this);
             game_options.Load_PlayerSelectList(this);
 
-            Profile_Options profile_options = new Profile_Options();
+            ProfileOptions profile_options = new ProfileOptions();
             profile_options.Load_Profiles(this);
 
             game_options.Load_GameOptions(this);
@@ -43,47 +43,47 @@ namespace TeronDoomLauncher
 
         private void add_wads_button_Click(object sender, RoutedEventArgs e)
         {
-            WAD_Options wad_options = new WAD_Options();
+            WADOptions wad_options = new WADOptions();
             wad_options.AddWADs(this);
         }
 
         private void add_engines_Click(object sender, RoutedEventArgs e)
         {
-            Engine_Options engine_options = new Engine_Options();
+            EngineOptions engine_options = new EngineOptions();
             engine_options.AddEngines(this);
         }
 
         private void remove_wads_Click(object sender, RoutedEventArgs e)
         {
-            WAD_Options wad_options = new WAD_Options();
+            WADOptions wad_options = new WADOptions();
             wad_options.Remove_WAD(this);
         }
 
         private void remove_engines_Click(object sender, RoutedEventArgs e)
         {
-            Engine_Options engine_options = new Engine_Options();
+            EngineOptions engine_options = new EngineOptions();
             engine_options.Remove_Engine(this);
         }
 
         private void edit_wad_button_Click(object sender, RoutedEventArgs e)
         {
-            WAD_Options wad_options = new WAD_Options();
+            WADOptions wad_options = new WADOptions();
             wad_options.Edit_WAD(this);
         }
 
         private void edit_engine_button_Click(object sender, RoutedEventArgs e)
         {
-            Engine_Options engine_options = new Engine_Options();
+            EngineOptions engine_options = new EngineOptions();
             engine_options.Edit_Engine(this);
         }
 
         private void SyncConfig()
         {
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Save_GameOptions(this);
             game_options.GenerateExecutable(this);
 
-            Profile_Options profile_options = new Profile_Options();
+            ProfileOptions profile_options = new ProfileOptions();
             profile_options.UpdateProfileDetails(this);
         }
 
@@ -94,20 +94,20 @@ namespace TeronDoomLauncher
 
         private void play_button_Click(object sender, RoutedEventArgs e)
         {
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.PlayGame(this);
         }
 
         private void wad_selection_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Load_MapsToList(this);
             SyncConfig();
         }
 
         private void LauncherWindow_FormClosed(object? sender, System.EventArgs e)
         {
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Save_GameOptions(this);
         }
 
@@ -115,25 +115,25 @@ namespace TeronDoomLauncher
         {
             // Capture bounds before the window actually closes/minimizes, since
             // RestoreBounds/WindowState are no longer reliable once the handle is torn down.
-            Window_Options window_options = new Window_Options();
+            WindowOptions window_options = new WindowOptions();
             window_options.SaveWindowSettings(this);
         }
 
         private void add_mod_button_Click(object sender, RoutedEventArgs e)
         {
-            Mods_Options mods_options = new Mods_Options();
+            ModsOptions mods_options = new ModsOptions();
             mods_options.AddMods(this);
         }
 
         private void remove_mod_button_Click(object sender, RoutedEventArgs e)
         {
-            Mods_Options mods_options = new Mods_Options();
+            ModsOptions mods_options = new ModsOptions();
             mods_options.Remove_Mod(this);
         }
 
         private void enable_multiplayer_CheckedChanged(object sender, RoutedEventArgs e)
         {
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.OnlineModeEnable(this);
             SyncConfig();
         }
@@ -149,13 +149,13 @@ namespace TeronDoomLauncher
 
         private void add_profile_Click(object? sender, RoutedEventArgs e)
         {
-            Profile_Options profile_options = new Profile_Options();
+            ProfileOptions profile_options = new ProfileOptions();
             profile_options.AddProfile(this);
         }
 
         private void remove_profile_Click(object? sender, RoutedEventArgs e)
         {
-            Profile_Options profile_options = new Profile_Options();
+            ProfileOptions profile_options = new ProfileOptions();
             profile_options.RemoveProfile(this);
         }
 
@@ -173,7 +173,7 @@ namespace TeronDoomLauncher
                 Globals.Config.Configuration.Profiles.LastSelectedProfile = Globals.SelectedProfile;
                 ConfigStore.SaveAll();
 
-                Game_Options game_options = new Game_Options();
+                GameOptions game_options = new GameOptions();
                 game_options.Load_GameOptions(this);
                 SyncConfig();
             }
@@ -189,7 +189,7 @@ namespace TeronDoomLauncher
             if (!IsDescendantOfListBoxItem(e.OriginalSource as DependencyObject))
                 return;
 
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.PlayGame(this);
         }
 

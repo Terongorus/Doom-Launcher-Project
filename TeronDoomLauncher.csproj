@@ -23,7 +23,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <MajorMinorPatchVersion>2.0.0</MajorMinorPatchVersion>
+    <MajorMinorPatchVersion>2.0.1</MajorMinorPatchVersion>
     <BuildNumberFile>$(MSBuildProjectDirectory)\BuildNumber.txt</BuildNumberFile>
   </PropertyGroup>
 

@@ -227,7 +227,7 @@ namespace TeronDoomLauncher
     }
 
     // Persists/restores the main window's position, size, and maximized state across runs.
-    public class Window_Options
+    public class WindowOptions
     {
         public void LoadWindowSettings(LauncherWindow self)
         {
@@ -277,7 +277,7 @@ namespace TeronDoomLauncher
         }
     }
 
-    public class WAD_Options
+    public class WADOptions
     {
         public void AddWADs(LauncherWindow self)
         {
@@ -350,7 +350,7 @@ namespace TeronDoomLauncher
             this.Load_WADs(self);
             if (addedMods > 0)
             {
-                Mods_Options mods_options = new Mods_Options();
+                ModsOptions mods_options = new ModsOptions();
                 mods_options.Load_Mods(self);
             }
         }
@@ -381,7 +381,7 @@ namespace TeronDoomLauncher
                     self.wads_list?.Items.Add(mod_file.Mod_Name + " [" + mod_file.Mod_Dir + "]");
             }
 
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Load_WADsToList(self);
         }
 
@@ -421,7 +421,7 @@ namespace TeronDoomLauncher
             this.Load_WADs(self);
             if (removedMod)
             {
-                Mods_Options mods_options = new Mods_Options();
+                ModsOptions mods_options = new ModsOptions();
                 mods_options.Load_Mods(self);
             }
 
@@ -503,7 +503,7 @@ namespace TeronDoomLauncher
                 ConfigStore.SaveAll();
 
                 this.Load_WADs(self);
-                Game_Options game_options = new Game_Options();
+                GameOptions game_options = new GameOptions();
                 game_options.Load_WADsToList(self);
             }
         }
@@ -562,13 +562,13 @@ namespace TeronDoomLauncher
                 ConfigStore.SaveAll();
 
                 this.Load_WADs(self);
-                Mods_Options mods_options = new Mods_Options();
+                ModsOptions mods_options = new ModsOptions();
                 mods_options.Load_Mods(self);
             }
         }
     }
 
-    public class Engine_Options
+    public class EngineOptions
     {
         // Builds a default nickname from the executable's own file version metadata
         // (e.g. "gzdoom-4.11.0") instead of guessing from the file path.
@@ -677,7 +677,7 @@ namespace TeronDoomLauncher
                     break;
                 }
             }
-            Game_Options game_options = new Game_Options();
+            GameOptions game_options = new GameOptions();
             game_options.Load_EnginesToList(self);
         }
 
@@ -692,7 +692,7 @@ namespace TeronDoomLauncher
                     Globals.EnginesList.RemoveAt(selectedIndex);
                 }
                 ConfigStore.SaveAll();
-                Game_Options game_options = new Game_Options();
+                GameOptions game_options = new GameOptions();
                 game_options.Load_EnginesToList(self);
 
                 MessageBox.Show("Selected engine/engines removed and configuration updated.", "Engine/engines Removed", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -819,7 +819,7 @@ namespace TeronDoomLauncher
         public override string ToString() => Text;
     }
 
-    public class Mods_Options
+    public class ModsOptions
     {
         public void AddMods(LauncherWindow self)
         {
@@ -897,7 +897,7 @@ namespace TeronDoomLauncher
         }
     }
 
-    public class Game_Options
+    public class GameOptions
     {
         // Mods checked via the CheckBox in each mods_selection row (see CheckableItem).
         private static IEnumerable<string> GetCheckedModNames(LauncherWindow self)
@@ -1509,7 +1509,7 @@ namespace TeronDoomLauncher
         }
     }
 
-    public class Profile_Options
+    public class ProfileOptions
     {
         public void Load_Profiles(LauncherWindow self)
         {
