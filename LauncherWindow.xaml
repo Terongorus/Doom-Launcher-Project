@@ -1,0 +1,229 @@
+<Window x:Class="TeronDoomLauncher.LauncherWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Form1" Height="679" Width="993"
+        Closing="LauncherWindow_FormClosing" Closed="LauncherWindow_FormClosed">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="64"/>
+        </Grid.RowDefinitions>
+
+        <TabControl x:Name="menu_control" Grid.Row="0" FontSize="16">
+
+            <!-- Profiles tab -->
+            <TabItem x:Name="profiles_tab" Header="Profiles">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Grid.Column="0" LastChildFill="True" Margin="0,0,0,4">
+                        <Label x:Name="profile_select_label" Content="Select Profile:" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Button x:Name="add_profile" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="add_profile_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/add-icon-2.png"/>
+                        </Button>
+                        <Button x:Name="remove_profile" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="remove_profile_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/Red-Minus-Symbol-PNG-Image.png"/>
+                        </Button>
+                        <Button x:Name="edit_profile" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="edit_profile_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/45706.png"/>
+                        </Button>
+                    </DockPanel>
+                    <Label Grid.Row="0" Grid.Column="1" Content="Details:" Margin="8,0,0,4"/>
+
+                    <ListBox x:Name="profile_select" Grid.Row="1" Grid.Column="0"
+                             SelectionChanged="profile_select_SelectedIndexChanged"
+                             PreviewMouseLeftButtonUp="profile_select_MouseDoubleClick"/>
+                    <RichTextBox x:Name="profile_details_textbox" Grid.Row="1" Grid.Column="1" IsReadOnly="True" Margin="8,0,0,0"
+                                 VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+            </TabItem>
+
+            <!-- Game Options tab -->
+            <TabItem x:Name="game_options_tab" Header="Game Options">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: single-player + multiplayer options -->
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <Label x:Name="map_selection_label" Content="Map:"/>
+                                <ComboBox x:Name="map_selection" SelectionChanged="map_selection_SelectedIndexChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <Label x:Name="difficulty_selection_label" Content="Skill:"/>
+                                <ComboBox x:Name="difficulty_selection" SelectionChanged="difficulty_selection_SelectedIndexChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <CheckBox x:Name="enable_multiplayer" Content="Multiplayer Mode" Margin="0,12,0,0"
+                                  Checked="enable_multiplayer_CheckedChanged" Unchecked="enable_multiplayer_CheckedChanged"/>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <Label x:Name="game_mode_label" Content="Game mode:"/>
+                                <ComboBox x:Name="multiplayer_game_mode_select" SelectionChanged="multiplayer_game_mode_select_SelectedIndexChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <Label x:Name="players_host_label" Content="Players (host/join):"/>
+                                <ComboBox x:Name="players_host_select" SelectionChanged="players_host_select_SelectedIndexChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <Label x:Name="hostname_ip_label" Content="Hostname/IP:"/>
+                                <TextBox x:Name="hostname_ip_textbox" TextChanged="hostname_ip_textbox_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <Label x:Name="port_label" Content="Port:"/>
+                                <TextBox x:Name="port_textbox" TextChanged="port_textbox_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <Label x:Name="frag_limit_label" Content="Frag limit:"/>
+                                <TextBox x:Name="frag_limit" TextChanged="frag_limit_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <Label x:Name="time_limit_label" Content="Time limit"/>
+                                <TextBox x:Name="time_limit" TextChanged="time_limit_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <Label x:Name="dmflags_label" Content="DMFLAGS:"/>
+                                <TextBox x:Name="dmflags" TextChanged="dmflags_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <Label x:Name="dmflags2_label" Content="DMFLAGS2:"/>
+                                <TextBox x:Name="dmflags2" TextChanged="dmflags2_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Label x:Name="additional_parameters_label" Content="Additional parameters:" Margin="0,8,0,0"/>
+                        <TextBox x:Name="additional_parameters_textbox" TextChanged="additional_parameters_textbox_TextChanged"/>
+                    </StackPanel>
+
+                    <!-- Right: engine + WAD + mods selection -->
+                    <Grid Grid.Column="1" Margin="10,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Label x:Name="engine_selection_label" Grid.Row="0" Grid.Column="1" Content="Select engine:"/>
+                        <ComboBox x:Name="engine_selection" Grid.Row="1" Grid.Column="1" SelectionChanged="engine_selection_SelectedIndexChanged"/>
+
+                        <Label x:Name="mods_selection_label" Grid.Row="2" Grid.Column="0" Content="Select Mods:" Margin="0,12,0,0"/>
+                        <Label x:Name="wad_selection_label" Grid.Row="2" Grid.Column="1" Content="Select WAD:" Margin="6,12,0,0"/>
+
+                        <ListBox x:Name="mods_selection" Grid.Row="3" Grid.Column="0" Margin="0,0,6,0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Text}" IsChecked="{Binding IsChecked, Mode=TwoWay}" Checked="mods_selection_ItemCheck" Unchecked="mods_selection_ItemCheck"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <ListBox x:Name="wad_selection" Grid.Row="3" Grid.Column="1" Margin="6,0,0,0" SelectionChanged="wad_selection_SelectedIndexChanged"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- Launcher Options tab -->
+            <TabItem x:Name="launcher_options_tab" Header="Launcher Options">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Grid.Column="0" LastChildFill="True">
+                        <Label x:Name="wads_label" Content="Game files:" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Button x:Name="add_wads_button" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="add_wads_button_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/add-icon-2.png"/>
+                        </Button>
+                        <Button x:Name="remove_wads" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="remove_wads_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/Red-Minus-Symbol-PNG-Image.png"/>
+                        </Button>
+                        <Button x:Name="edit_wad_button" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="edit_wad_button_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/45706.png"/>
+                        </Button>
+                    </DockPanel>
+                    <DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True" Margin="10,0,0,0">
+                        <Label x:Name="engines_label" Content="Engines:" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Button x:Name="add_engines" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="add_engines_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/add-icon-2.png"/>
+                        </Button>
+                        <Button x:Name="remove_engines" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="remove_engines_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/Red-Minus-Symbol-PNG-Image.png"/>
+                        </Button>
+                        <Button x:Name="edit_engine_button" DockPanel.Dock="Right" Width="27" Height="27" Margin="2" Click="edit_engine_button_Click">
+                            <Image Source="pack://siteoforigin:,,,/Resources/45706.png"/>
+                        </Button>
+                    </DockPanel>
+
+                    <Label x:Name="wads_info" Grid.Row="1" Grid.Column="0" Content="(.WAD | .PK3 | .ZIP | .TAR)" FontStyle="Italic"/>
+                    <Label x:Name="engines_info" Grid.Row="1" Grid.Column="1" Content="(.EXE)" FontStyle="Italic" Margin="10,0,0,0"/>
+
+                    <ListBox x:Name="wads_list" Grid.Row="2" Grid.Column="0" SelectionMode="Extended"/>
+                    <ListBox x:Name="engines_list" Grid.Row="2" Grid.Column="1" Margin="10,0,0,0" SelectionMode="Extended"
+                             SelectionChanged="engines_list_SelectedIndexChanged"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <Grid Grid.Row="1" Margin="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="command_line_view" Grid.Column="0" IsReadOnly="True" Margin="0,0,4,0"
+                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+            <Button x:Name="play_button" Grid.Column="1" Content="_Play" Width="100" FontSize="14" FontWeight="Bold" Click="play_button_Click"/>
+        </Grid>
+    </Grid>
+</Window>

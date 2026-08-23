@@ -5,6 +5,29 @@ All notable changes to Teron Doom Launcher are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow major.minor.hotfix (e.g. 1.2.3).
 
+## [2.0.0] - 2026-08-24
+
+UI rewrite from Windows Forms to WPF, following this developer's portfolio-wide move away from
+WinForms, bundled with overdue project-hygiene cleanup this app had never gotten before. Config
+loading/saving, WAD binary-format lump scanning, and the command-line generation logic are all
+unchanged - only the UI layer and its control APIs were translated.
+
+### Changed
+
+- All UI rewritten in WPF/XAML.
+- The mod checklist (previously a WinForms `CheckedListBox`, which has no WPF equivalent) is now
+  a plain list with a checkbox per row - same add/remove/check behavior.
+- Publish output and installer packaging now land under a consolidated `Build\` folder instead
+  of `bin\...`, matching this developer's other apps.
+- The build number now increments automatically on every build, matching the versioning scheme
+  used across this developer's other apps.
+
+### Removed
+
+- Leftover .NET Framework-era project files that predated this app's move to the SDK-style
+  project format: `App.config`, `packages.config` and its local NuGet package cache, an empty
+  `AssemblyInfo.cs`, and an unused `Settings.settings` (zero settings were ever defined in it).
+
 ## [1.9.0] - 2026-06-28
 
 ### Added

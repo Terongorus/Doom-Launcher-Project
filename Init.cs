@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
-using System.Windows.Forms;
+using System.Windows;
 
 namespace TeronDoomLauncher
 {
@@ -173,28 +173,35 @@ namespace TeronDoomLauncher
         [STAThread]
         static void Main()
         {
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.ThreadException += (_, args) => LogException(args.Exception);
-            AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            {
-                if (args.ExceptionObject is Exception ex)
-                    LogException(ex);
-            };
-
             _singleInstanceMutex = new Mutex(true, "TeronDoomLauncher.SingleInstance", out bool createdNew);
             if (!createdNew)
             {
                 MessageBox.Show(
                     $"{GetDisplayName()} is already running.",
                     GetDisplayName(),
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
                 return;
             }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new LauncherWindow());
+            var app = new Application();
+            app.DispatcherUnhandledException += (_, args) =>
+            {
+                LogException(args.Exception);
+                args.Handled = true;
+            };
+            AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                    LogException(ex);
+            };
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
+            {
+                LogException(args.Exception);
+                args.SetObserved();
+            };
+
+            app.Run(new LauncherWindow());
 
             _singleInstanceMutex.ReleaseMutex();
         }

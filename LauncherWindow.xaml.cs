@@ -1,6 +1,12 @@
-﻿namespace TeronDoomLauncher
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+
+namespace TeronDoomLauncher
 {
-    public partial class LauncherWindow : Form
+    public partial class LauncherWindow : Window
     {
         //loads the whole frame and all the components
         public LauncherWindow()
@@ -30,58 +36,42 @@
             Profile_Options profile_options = new Profile_Options();
             profile_options.Load_Profiles(this);
 
-            this.add_profile.Click += new System.EventHandler(this.add_profile_Click);
-            this.remove_profile.Click += new System.EventHandler(this.remove_profile_Click);
-            this.edit_profile.Click += new System.EventHandler(this.edit_profile_Click);
-            this.profile_select.SelectedIndexChanged += new System.EventHandler(this.profile_select_SelectedIndexChanged);
-            this.profile_select.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.profile_select_MouseDoubleClick);
-
             game_options.Load_GameOptions(this);
             game_options.OnlineModeEnable(this);
             game_options.GenerateExecutable(this);
         }
 
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void add_wads_button_Click(object sender, EventArgs e)
+        private void add_wads_button_Click(object sender, RoutedEventArgs e)
         {
             WAD_Options wad_options = new WAD_Options();
             wad_options.AddWADs(this);
         }
 
-        private void add_engines_Click(object sender, EventArgs e)
+        private void add_engines_Click(object sender, RoutedEventArgs e)
         {
             Engine_Options engine_options = new Engine_Options();
             engine_options.AddEngines(this);
         }
 
-        private void remove_wads_Click(object sender, EventArgs e)
+        private void remove_wads_Click(object sender, RoutedEventArgs e)
         {
             WAD_Options wad_options = new WAD_Options();
             wad_options.Remove_WAD(this);
         }
 
-        private void remove_engines_Click(object sender, EventArgs e)
+        private void remove_engines_Click(object sender, RoutedEventArgs e)
         {
             Engine_Options engine_options = new Engine_Options();
             engine_options.Remove_Engine(this);
         }
 
-        private void edit_wad_button_Click(object sender, EventArgs e)
+        private void edit_wad_button_Click(object sender, RoutedEventArgs e)
         {
             WAD_Options wad_options = new WAD_Options();
             wad_options.Edit_WAD(this);
         }
 
-        private void edit_engine_button_Click(object sender, EventArgs e)
+        private void edit_engine_button_Click(object sender, RoutedEventArgs e)
         {
             Engine_Options engine_options = new Engine_Options();
             engine_options.Edit_Engine(this);
@@ -97,31 +87,31 @@
             profile_options.UpdateProfileDetails(this);
         }
 
-        private void engine_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private void engine_selection_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void play_button_Click(object sender, EventArgs e)
+        private void play_button_Click(object sender, RoutedEventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.PlayGame(this);
         }
 
-        private void wad_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private void wad_selection_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.Load_MapsToList(this);
             SyncConfig();
         }
 
-        private void LauncherWindow_FormClosed(object sender, FormClosedEventArgs e)
+        private void LauncherWindow_FormClosed(object? sender, System.EventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.Save_GameOptions(this);
         }
 
-        private void LauncherWindow_FormClosing(object? sender, FormClosingEventArgs e)
+        private void LauncherWindow_FormClosing(object? sender, CancelEventArgs e)
         {
             // Capture bounds before the window actually closes/minimizes, since
             // RestoreBounds/WindowState are no longer reliable once the handle is torn down.
@@ -129,69 +119,52 @@
             window_options.SaveWindowSettings(this);
         }
 
-        private void LauncherWindow_Click(object sender, EventArgs e)
-        {
-            SyncConfig();
-        }
-
-        private void add_mod_button_Click(object sender, EventArgs e)
+        private void add_mod_button_Click(object sender, RoutedEventArgs e)
         {
             Mods_Options mods_options = new Mods_Options();
             mods_options.AddMods(this);
         }
 
-        private void remove_mod_button_Click(object sender, EventArgs e)
+        private void remove_mod_button_Click(object sender, RoutedEventArgs e)
         {
             Mods_Options mods_options = new Mods_Options();
             mods_options.Remove_Mod(this);
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            Game_Options game_options = new Game_Options();
-            game_options.GenerateExecutable(this);
-        }
-
-        private void enable_multiplayer_CheckedChanged(object sender, EventArgs e)
+        private void enable_multiplayer_CheckedChanged(object sender, RoutedEventArgs e)
         {
             Game_Options game_options = new Game_Options();
             game_options.OnlineModeEnable(this);
             SyncConfig();
         }
 
-        private void mods_selection_ItemCheck(object sender, ItemCheckEventArgs e)
+        // WPF's CheckBox.Checked/Unchecked already fire AFTER the bound IsChecked property has
+        // committed (unlike WinForms' ItemCheck, which fires before commit and needed a
+        // BeginInvoke-deferred sync) - safe to sync directly here.
+        private void mods_selection_ItemCheck(object sender, RoutedEventArgs e)
         {
-            // ItemCheck fires before the checked state is committed, so defer
-            // the sync until after it lands; skip while a profile load is in progress.
-            if (!Globals.IsLoadingConfig && this.IsHandleCreated)
-            {
-                this.BeginInvoke(new Action(SyncConfig));
-            }
+            if (!Globals.IsLoadingConfig)
+                SyncConfig();
         }
 
-        private void profile_select_label_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void add_profile_Click(object? sender, EventArgs e)
+        private void add_profile_Click(object? sender, RoutedEventArgs e)
         {
             Profile_Options profile_options = new Profile_Options();
             profile_options.AddProfile(this);
         }
 
-        private void remove_profile_Click(object? sender, EventArgs e)
+        private void remove_profile_Click(object? sender, RoutedEventArgs e)
         {
             Profile_Options profile_options = new Profile_Options();
             profile_options.RemoveProfile(this);
         }
 
-        private void edit_profile_Click(object? sender, EventArgs e)
+        private void edit_profile_Click(object? sender, RoutedEventArgs e)
         {
-            this.menu_control.SelectedTab = this.game_options_tab;
+            this.menu_control.SelectedItem = this.game_options_tab;
         }
 
-        private void profile_select_SelectedIndexChanged(object? sender, EventArgs e)
+        private void profile_select_SelectedIndexChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (profile_select.SelectedItem != null)
             {
@@ -206,83 +179,87 @@
             }
         }
 
-        private void profile_select_MouseDoubleClick(object? sender, MouseEventArgs e)
+        private void profile_select_MouseDoubleClick(object? sender, MouseButtonEventArgs e)
         {
-            // Only act when the double-click actually landed on a profile row, not on
+            // Only act on an actual double-click that landed on a profile row, not on
             // empty list space below the last entry.
-            if (profile_select.IndexFromPoint(e.Location) == ListBox.NoMatches)
+            if (e.ClickCount != 2)
+                return;
+
+            if (!IsDescendantOfListBoxItem(e.OriginalSource as DependencyObject))
                 return;
 
             Game_Options game_options = new Game_Options();
             game_options.PlayGame(this);
         }
 
-        private void map_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private static bool IsDescendantOfListBoxItem(DependencyObject? source)
+        {
+            while (source != null)
+            {
+                if (source is ListBoxItem)
+                    return true;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return false;
+        }
+
+        private void map_selection_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void mods_selection_label_Click(object sender, EventArgs e)
+        private void engines_list_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
 
         }
 
-        private void engines_list_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void engine_selection_label_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void difficulty_selection_SelectedIndexChanged(object sender, EventArgs e)
+        private void difficulty_selection_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void multiplayer_game_mode_select_SelectedIndexChanged(object sender, EventArgs e)
+        private void multiplayer_game_mode_select_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void players_host_select_SelectedIndexChanged(object sender, EventArgs e)
+        private void players_host_select_SelectedIndexChanged(object sender, SelectionChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void hostname_ip_textbox_TextChanged(object sender, EventArgs e)
+        private void hostname_ip_textbox_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void port_textbox_TextChanged(object sender, EventArgs e)
+        private void port_textbox_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void frag_limit_TextChanged(object sender, EventArgs e)
+        private void frag_limit_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void time_limit_TextChanged(object sender, EventArgs e)
+        private void time_limit_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void dmflags_TextChanged(object sender, EventArgs e)
+        private void dmflags_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void dmflags2_TextChanged(object sender, EventArgs e)
+        private void dmflags2_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }
 
-        private void additional_parameters_textbox_TextChanged(object sender, EventArgs e)
+        private void additional_parameters_textbox_TextChanged(object sender, TextChangedEventArgs e)
         {
             SyncConfig();
         }

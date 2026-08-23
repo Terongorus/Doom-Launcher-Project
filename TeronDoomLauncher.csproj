@@ -4,7 +4,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>TeronDoomLauncher</RootNamespace>
     <AssemblyName>TeronDoomLauncher</AssemblyName>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -15,15 +15,34 @@
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>TDL.ico</ApplicationIcon>
     <StartupObject>TeronDoomLauncher.Init</StartupObject>
-    <Version>1.9.0</Version>
-    <FileVersion>1.9.0</FileVersion>
     <Company>Teronverse</Company>
     <Product>Teron Doom Launcher (TDL)</Product>
     <Description>DooM launcher for GZDooM and ZDooM and other ports of the original DooM engine</Description>
-    <Copyright>Copyright © 2025</Copyright>
-    <AssemblyVersion>1.9.0</AssemblyVersion>
+    <Copyright>Copyright © 2025-2026</Copyright>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <MajorMinorPatchVersion>2.0.0</MajorMinorPatchVersion>
+    <BuildNumberFile>$(MSBuildProjectDirectory)\BuildNumber.txt</BuildNumberFile>
+  </PropertyGroup>
+
+  <Target Name="IncrementBuildNumber" BeforeTargets="BeforeBuild">
+    <ReadLinesFromFile File="$(BuildNumberFile)" Condition="Exists('$(BuildNumberFile)')">
+      <Output TaskParameter="Lines" ItemName="_BuildNumberLine" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <_PreviousBuildNumber Condition="'@(_BuildNumberLine)' != ''">@(_BuildNumberLine)</_PreviousBuildNumber>
+      <_PreviousBuildNumber Condition="'$(_PreviousBuildNumber)' == ''">0</_PreviousBuildNumber>
+      <BuildNumber>$([MSBuild]::Add($(_PreviousBuildNumber), 1))</BuildNumber>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(BuildNumberFile)" Lines="$(BuildNumber)" Overwrite="true" />
+    <PropertyGroup>
+      <AssemblyVersion>$(MajorMinorPatchVersion).$(BuildNumber)</AssemblyVersion>
+      <FileVersion>$(MajorMinorPatchVersion).$(BuildNumber)</FileVersion>
+      <Version>$(MajorMinorPatchVersion).$(BuildNumber)</Version>
+    </PropertyGroup>
+  </Target>
 
   <!-- Only applies when publishing with -r win-x64/-r win-x86, so regular dotnet build is unaffected. -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
@@ -33,24 +52,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
+    <Content Include="Resources\*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--

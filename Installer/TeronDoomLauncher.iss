@@ -9,20 +9,20 @@
 ;   ISCC TeronDoomLauncher.iss              (defaults to x64)
 ;   ISCC /DArch=x86 TeronDoomLauncher.iss    (x86 build)
 ;
-; Output goes to bin\InstallerPackage\TeronDoomLauncher-<arch>.exe
+; Output goes to Build\InstallerPackage\TeronDoomLauncherSetup-<arch>.exe
 
 #ifndef Arch
   #define Arch "x64"
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.9.0"
+  #define MyAppVersion "2.0.0"
 #endif
 
 #define MyAppName "Teron Doom Launcher"
 #define MyAppPublisher "Teronverse"
 #define MyAppExeName "TeronDoomLauncher.exe"
-#define MyPublishDir "..\bin\Publish\TeronDoomLauncher_Win_" + Arch
+#define MyPublishDir "..\Build\Publish\TeronDoomLauncher\win-" + Arch
 
 [Setup]
 AppId={{B6EC303A-AFD9-4B98-AD07-34A30D2B4BC4}
@@ -35,7 +35,7 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE.txt
 SetupIconFile=..\TDL.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-OutputDir=..\bin\InstallerPackage
+OutputDir=..\Build\InstallerPackage
 OutputBaseFilename=TeronDoomLauncherSetup-{#Arch}
 Compression=lzma2/max
 SolidCompression=yes

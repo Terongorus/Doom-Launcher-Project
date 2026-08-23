@@ -1,12 +1,15 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
-using Microsoft.VisualBasic.ApplicationServices;
 using System.Reflection;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace TeronDoomLauncher
 {
@@ -234,38 +237,40 @@ namespace TeronDoomLauncher
             if (window.Width <= 0 || window.Height <= 0)
                 return;
 
-            Rectangle savedBounds = new Rectangle(window.X, window.Y, window.Width, window.Height);
-            bool onScreen = false;
-            foreach (Screen screen in Screen.AllScreens)
-            {
-                if (screen.WorkingArea.IntersectsWith(savedBounds))
-                {
-                    onScreen = true;
-                    break;
-                }
-            }
-            if (!onScreen)
+            // WPF has no direct equivalent of WinForms' Screen.AllScreens loop without a
+            // WinForms reference - approximated here via the combined virtual-desktop bounds
+            // (SystemParameters.VirtualScreen*), which covers the common case (a saved position
+            // that's now entirely off any monitor) without needing per-monitor working areas.
+            Rect savedBounds = new Rect(window.X, window.Y, window.Width, window.Height);
+            Rect virtualScreen = new Rect(
+                SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+            if (!virtualScreen.IntersectsWith(savedBounds))
                 return;
 
-            self.StartPosition = FormStartPosition.Manual;
-            self.Location = new Point(window.X, window.Y);
-            self.Size = new Size(window.Width, window.Height);
+            self.WindowStartupLocation = WindowStartupLocation.Manual;
+            self.Left = window.X;
+            self.Top = window.Y;
+            self.Width = window.Width;
+            self.Height = window.Height;
             if (window.Maximized)
-                self.WindowState = FormWindowState.Maximized;
+                self.WindowState = WindowState.Maximized;
         }
 
         public void SaveWindowSettings(LauncherWindow self)
         {
             ConfigStore.LoadAll();
 
-            bool maximized = self.WindowState == FormWindowState.Maximized;
-            Rectangle bounds = self.WindowState == FormWindowState.Normal ? self.Bounds : self.RestoreBounds;
+            bool maximized = self.WindowState == WindowState.Maximized;
+            Rect bounds = self.WindowState == WindowState.Normal
+                ? new Rect(self.Left, self.Top, self.Width, self.Height)
+                : self.RestoreBounds;
 
             Globals.WindowSettings window = Globals.Config.Configuration.Window;
-            window.X = bounds.X;
-            window.Y = bounds.Y;
-            window.Width = bounds.Width;
-            window.Height = bounds.Height;
+            window.X = (int)bounds.X;
+            window.Y = (int)bounds.Y;
+            window.Width = (int)bounds.Width;
+            window.Height = (int)bounds.Height;
             window.Maximized = maximized;
 
             ConfigStore.SaveAll();
@@ -287,16 +292,16 @@ namespace TeronDoomLauncher
                     Globals.ModsList.RemoveAt(i);
 
             //opens a file dialog to select WAD or mod files - they get sorted automatically below
-            OpenFileDialog WADFileDialog = new OpenFileDialog
+            Microsoft.Win32.OpenFileDialog WADFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Select WAD/Mod Files",
                 Filter = "WAD/Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
                 Multiselect = true
             };
 
-            if (WADFileDialog.ShowDialog() != DialogResult.OK)
+            if (WADFileDialog.ShowDialog() != true)
             {
-                MessageBox.Show("No WAD/mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No WAD/mod files were selected.", "Selection Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -334,13 +339,13 @@ namespace TeronDoomLauncher
 
             if (addedWads == 0 && addedMods == 0)
             {
-                MessageBox.Show("All selected files were already in the WAD/mod list.", "Nothing Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("All selected files were already in the WAD/mod list.", "Nothing Added", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             ConfigStore.SaveAll();
 
-            MessageBox.Show($"{addedWads} WAD(s) and {addedMods} mod(s) added and configuration updated.", "Files Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"{addedWads} WAD(s) and {addedMods} mod(s) added and configuration updated.", "Files Added", MessageBoxButton.OK, MessageBoxImage.Information);
 
             this.Load_WADs(self);
             if (addedMods > 0)
@@ -363,7 +368,7 @@ namespace TeronDoomLauncher
                 }
                 else
                 {
-                    MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("One or more WAD entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButton.OK, MessageBoxImage.Warning);
                     break;
                 }
             }
@@ -382,16 +387,18 @@ namespace TeronDoomLauncher
 
         public void Remove_WAD(LauncherWindow self)
         {
-            if (self.wads_list == null || self.wads_list.SelectedIndices.Count == 0)
+            if (self.wads_list == null || self.wads_list.SelectedItems.Count == 0)
             {
-                MessageBox.Show("No WAD/WADs selected to remove.", "Removal Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No WAD/WADs selected to remove.", "Removal Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             // wads_list displays WADList entries followed by ModsList entries (see Load_WADs),
             // so anything at or past wadCount belongs to ModsList.
             int wadCount = Globals.WADList.Count;
-            var selectedIndices = self.wads_list.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
+            var selectedIndices = self.wads_list.SelectedItems.Cast<object>()
+                .Select(item => self.wads_list.Items.IndexOf(item))
+                .OrderByDescending(i => i).ToList();
 
             bool removedWad = false, removedMod = false;
             foreach (int index in selectedIndices)
@@ -418,14 +425,14 @@ namespace TeronDoomLauncher
                 mods_options.Load_Mods(self);
             }
 
-            MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Selected WAD/WADs removed and configuration updated.", "WAD/WADs Removed", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         public void Edit_WAD(LauncherWindow self)
         {
             if (self.wads_list?.SelectedItem == null)
             {
-                MessageBox.Show("No WAD/mod selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No WAD/mod selected to edit.", "Edit Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -444,40 +451,52 @@ namespace TeronDoomLauncher
 
         private void EditWadEntry(LauncherWindow self, Globals.WADListStructure wad)
         {
-            Form dialog = new Form()
+            Window dialog = new Window()
             {
-                Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = $"Edit WAD: {wad.WAD_Name}", StartPosition = FormStartPosition.CenterParent,
-                MaximizeBox = false, MinimizeBox = false
+                Width = 560, Height = 230, ResizeMode = ResizeMode.NoResize,
+                Title = $"Edit WAD: {wad.WAD_Name}", WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = self
             };
 
-            Label nameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "WAD name:" };
-            TextBox nameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = wad.WAD_Name ?? string.Empty };
+            Label nameLabel = new Label() { Content = "WAD name:" };
+            Canvas.SetLeft(nameLabel, 10); Canvas.SetTop(nameLabel, 10);
+            TextBox nameBox = new TextBox() { Width = 520, Text = wad.WAD_Name ?? string.Empty };
+            Canvas.SetLeft(nameBox, 10); Canvas.SetTop(nameBox, 40);
 
-            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "WAD file path:" };
-            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = wad.WAD_Dir ?? string.Empty };
-            Button browseBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            Label dirLabel = new Label() { Content = "WAD file path:" };
+            Canvas.SetLeft(dirLabel, 10); Canvas.SetTop(dirLabel, 80);
+            TextBox dirBox = new TextBox() { Width = 430, Text = wad.WAD_Dir ?? string.Empty };
+            Canvas.SetLeft(dirBox, 10); Canvas.SetTop(dirBox, 108);
+            Button browseBtn = new Button() { Content = "Browse...", Width = 80 };
+            Canvas.SetLeft(browseBtn, 450); Canvas.SetTop(browseBtn, 106);
             browseBtn.Click += (s, e) =>
             {
-                using OpenFileDialog ofd = new OpenFileDialog
+                Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "Select WAD File",
                     Filter = "WAD Files (*.wad)|*.wad|All Files (*.*)|*.*"
                 };
                 if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
                     ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (ofd.ShowDialog() == true)
                     dirBox.Text = ofd.FileName;
             };
 
-            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 155, Width = 80, DialogResult = DialogResult.OK };
-            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 155, Width = 80, DialogResult = DialogResult.Cancel };
+            bool accepted = false;
+            Button okBtn = new Button() { Content = "OK", Width = 80, IsDefault = true };
+            Canvas.SetLeft(okBtn, 360); Canvas.SetTop(okBtn, 155);
+            okBtn.Click += (s, e) => { accepted = true; dialog.Close(); };
+            Button cancelBtn = new Button() { Content = "Cancel", Width = 80, IsCancel = true };
+            Canvas.SetLeft(cancelBtn, 450); Canvas.SetTop(cancelBtn, 155);
 
-            dialog.Controls.AddRange(new Control[] { nameLabel, nameBox, dirLabel, dirBox, browseBtn, okBtn, cancelBtn });
-            dialog.AcceptButton = okBtn;
-            dialog.CancelButton = cancelBtn;
+            Canvas canvas = new Canvas();
+            canvas.Children.Add(nameLabel); canvas.Children.Add(nameBox);
+            canvas.Children.Add(dirLabel); canvas.Children.Add(dirBox); canvas.Children.Add(browseBtn);
+            canvas.Children.Add(okBtn); canvas.Children.Add(cancelBtn);
+            dialog.Content = canvas;
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            dialog.ShowDialog();
+            if (accepted)
             {
                 wad.WAD_Name = nameBox.Text.Trim();
                 wad.WAD_Dir = dirBox.Text.Trim();
@@ -491,40 +510,52 @@ namespace TeronDoomLauncher
 
         private void EditModEntry(LauncherWindow self, Globals.ModsListStructure mod)
         {
-            Form dialog = new Form()
+            Window dialog = new Window()
             {
-                Width = 560, Height = 230, FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = $"Edit Mod: {mod.Mod_Name}", StartPosition = FormStartPosition.CenterParent,
-                MaximizeBox = false, MinimizeBox = false
+                Width = 560, Height = 230, ResizeMode = ResizeMode.NoResize,
+                Title = $"Edit Mod: {mod.Mod_Name}", WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = self
             };
 
-            Label nameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "Mod name:" };
-            TextBox nameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = mod.Mod_Name ?? string.Empty };
+            Label nameLabel = new Label() { Content = "Mod name:" };
+            Canvas.SetLeft(nameLabel, 10); Canvas.SetTop(nameLabel, 10);
+            TextBox nameBox = new TextBox() { Width = 520, Text = mod.Mod_Name ?? string.Empty };
+            Canvas.SetLeft(nameBox, 10); Canvas.SetTop(nameBox, 40);
 
-            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "Mod file path:" };
-            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = mod.Mod_Dir ?? string.Empty };
-            Button browseBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            Label dirLabel = new Label() { Content = "Mod file path:" };
+            Canvas.SetLeft(dirLabel, 10); Canvas.SetTop(dirLabel, 80);
+            TextBox dirBox = new TextBox() { Width = 430, Text = mod.Mod_Dir ?? string.Empty };
+            Canvas.SetLeft(dirBox, 10); Canvas.SetTop(dirBox, 108);
+            Button browseBtn = new Button() { Content = "Browse...", Width = 80 };
+            Canvas.SetLeft(browseBtn, 450); Canvas.SetTop(browseBtn, 106);
             browseBtn.Click += (s, e) =>
             {
-                using OpenFileDialog ofd = new OpenFileDialog
+                Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "Select Mod File",
                     Filter = "Mod Files (*.wad;*.pk3;*.zip;*.pk7;*.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*"
                 };
                 if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
                     ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (ofd.ShowDialog() == true)
                     dirBox.Text = ofd.FileName;
             };
 
-            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 155, Width = 80, DialogResult = DialogResult.OK };
-            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 155, Width = 80, DialogResult = DialogResult.Cancel };
+            bool accepted = false;
+            Button okBtn = new Button() { Content = "OK", Width = 80, IsDefault = true };
+            Canvas.SetLeft(okBtn, 360); Canvas.SetTop(okBtn, 155);
+            okBtn.Click += (s, e) => { accepted = true; dialog.Close(); };
+            Button cancelBtn = new Button() { Content = "Cancel", Width = 80, IsCancel = true };
+            Canvas.SetLeft(cancelBtn, 450); Canvas.SetTop(cancelBtn, 155);
 
-            dialog.Controls.AddRange(new Control[] { nameLabel, nameBox, dirLabel, dirBox, browseBtn, okBtn, cancelBtn });
-            dialog.AcceptButton = okBtn;
-            dialog.CancelButton = cancelBtn;
+            Canvas canvas = new Canvas();
+            canvas.Children.Add(nameLabel); canvas.Children.Add(nameBox);
+            canvas.Children.Add(dirLabel); canvas.Children.Add(dirBox); canvas.Children.Add(browseBtn);
+            canvas.Children.Add(okBtn); canvas.Children.Add(cancelBtn);
+            dialog.Content = canvas;
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            dialog.ShowDialog();
+            if (accepted)
             {
                 mod.Mod_Name = nameBox.Text.Trim();
                 mod.Mod_Dir = dirBox.Text.Trim();
@@ -572,13 +603,13 @@ namespace TeronDoomLauncher
             ConfigStore.LoadAll();
 
             //opens a file dialog to select engine files
-            OpenFileDialog EngineFileDialog = new OpenFileDialog
+            Microsoft.Win32.OpenFileDialog EngineFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Select Engine Files",
                 Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*",
                 Multiselect = true
             };
-            if (EngineFileDialog.ShowDialog() == DialogResult.OK && Globals.EnginesList != null && self.engines_list != null)
+            if (EngineFileDialog.ShowDialog() == true && Globals.EnginesList != null && self.engines_list != null)
             {
                 foreach (string file in EngineFileDialog.FileNames)
                 {
@@ -598,12 +629,12 @@ namespace TeronDoomLauncher
                     Globals.EnginesList.Add(engine_entry);
                 }
                 ConfigStore.SaveAll();
-                MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Engine/engines added and configuration updated.", "Engine/engines Added", MessageBoxButton.OK, MessageBoxImage.Information);
                 this.Load_Engines(self);
             }
             else
             {
-                MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No engine files were selected.", "Selection Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
         }
@@ -642,7 +673,7 @@ namespace TeronDoomLauncher
                 }
                 else
                 {
-                    MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("One or more engine entries in the configuration file are invalid. Please check launcher_config.json.", "Invalid Entry", MessageBoxButton.OK, MessageBoxImage.Warning);
                     break;
                 }
             }
@@ -664,11 +695,11 @@ namespace TeronDoomLauncher
                 Game_Options game_options = new Game_Options();
                 game_options.Load_EnginesToList(self);
 
-                MessageBox.Show("Selected engine/engines removed and configuration updated.", "Engine/engines Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Selected engine/engines removed and configuration updated.", "Engine/engines Removed", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show("No engine/engines selected to remove.", "Removal Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No engine/engines selected to remove.", "Removal Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
         }
@@ -677,7 +708,7 @@ namespace TeronDoomLauncher
         {
             if (self.engines_list?.SelectedItem == null || Globals.EnginesList == null)
             {
-                MessageBox.Show("No engine selected to edit.", "Edit Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No engine selected to edit.", "Edit Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -686,41 +717,49 @@ namespace TeronDoomLauncher
 
             var engine = Globals.EnginesList[selectedIndex];
 
-            Form dialog = new Form()
+            Window dialog = new Window()
             {
-                Width = 560, Height = 360, FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = $"Edit Engine: {engine.Engine_Nickname}", StartPosition = FormStartPosition.CenterParent,
-                MaximizeBox = false, MinimizeBox = false
+                Width = 560, Height = 360, ResizeMode = ResizeMode.NoResize,
+                Title = $"Edit Engine: {engine.Engine_Nickname}", WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = self
             };
 
             // Nickname
-            Label nicknameLabel = new Label() { Left = 10, Top = 20, Width = 530, Text = "Nickname (shown in engine dropdown):" };
-            TextBox nicknameBox = new TextBox() { Left = 10, Top = 45, Width = 520, Text = engine.Engine_Nickname ?? string.Empty };
+            Label nicknameLabel = new Label() { Content = "Nickname (shown in engine dropdown):" };
+            Canvas.SetLeft(nicknameLabel, 10); Canvas.SetTop(nicknameLabel, 10);
+            TextBox nicknameBox = new TextBox() { Width = 520, Text = engine.Engine_Nickname ?? string.Empty };
+            Canvas.SetLeft(nicknameBox, 10); Canvas.SetTop(nicknameBox, 40);
 
             // Engine executable path
-            Label dirLabel = new Label() { Left = 10, Top = 85, Width = 530, Text = "Engine executable path:" };
-            TextBox dirBox = new TextBox() { Left = 10, Top = 110, Width = 430, Text = engine.Engine_Dir ?? string.Empty };
-            Button browseExeBtn = new Button() { Text = "Browse...", Left = 450, Top = 108, Width = 80 };
+            Label dirLabel = new Label() { Content = "Engine executable path:" };
+            Canvas.SetLeft(dirLabel, 10); Canvas.SetTop(dirLabel, 80);
+            TextBox dirBox = new TextBox() { Width = 430, Text = engine.Engine_Dir ?? string.Empty };
+            Canvas.SetLeft(dirBox, 10); Canvas.SetTop(dirBox, 108);
+            Button browseExeBtn = new Button() { Content = "Browse...", Width = 80 };
+            Canvas.SetLeft(browseExeBtn, 450); Canvas.SetTop(browseExeBtn, 106);
             browseExeBtn.Click += (s, e) =>
             {
-                using OpenFileDialog ofd = new OpenFileDialog
+                Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "Select Engine Executable",
                     Filter = "Engine Files (*.exe)|*.exe|All Files (*.*)|*.*"
                 };
                 if (!string.IsNullOrEmpty(dirBox.Text) && File.Exists(dirBox.Text))
                     ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (ofd.ShowDialog() == true)
                     dirBox.Text = ofd.FileName;
             };
 
             // Config file
-            Label configLabel = new Label() { Left = 10, Top = 150, Width = 530, Text = "Config file path (passed as -config <path> to the engine):" };
-            TextBox configBox = new TextBox() { Left = 10, Top = 175, Width = 430, Text = engine.Engine_Config ?? string.Empty };
-            Button browseConfigBtn = new Button() { Text = "Browse...", Left = 450, Top = 173, Width = 80 };
+            Label configLabel = new Label() { Content = "Config file path (passed as -config <path> to the engine):" };
+            Canvas.SetLeft(configLabel, 10); Canvas.SetTop(configLabel, 150);
+            TextBox configBox = new TextBox() { Width = 430, Text = engine.Engine_Config ?? string.Empty };
+            Canvas.SetLeft(configBox, 10); Canvas.SetTop(configBox, 178);
+            Button browseConfigBtn = new Button() { Content = "Browse...", Width = 80 };
+            Canvas.SetLeft(browseConfigBtn, 450); Canvas.SetTop(browseConfigBtn, 176);
             browseConfigBtn.Click += (s, e) =>
             {
-                using OpenFileDialog ofd = new OpenFileDialog
+                Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "Select Config File",
                     Filter = "Config Files (*.cfg;*.ini)|*.cfg;*.ini|All Files (*.*)|*.*"
@@ -729,22 +768,26 @@ namespace TeronDoomLauncher
                     ofd.InitialDirectory = Path.GetDirectoryName(configBox.Text) ?? string.Empty;
                 else if (!string.IsNullOrEmpty(dirBox.Text))
                     ofd.InitialDirectory = Path.GetDirectoryName(dirBox.Text) ?? string.Empty;
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (ofd.ShowDialog() == true)
                     configBox.Text = ofd.FileName;
             };
-            Button okBtn = new Button() { Text = "OK", Left = 360, Top = 285, Width = 80, DialogResult = DialogResult.OK };
-            Button cancelBtn = new Button() { Text = "Cancel", Left = 450, Top = 285, Width = 80, DialogResult = DialogResult.Cancel };
 
-            dialog.Controls.AddRange(new Control[] {
-                nicknameLabel, nicknameBox,
-                dirLabel, dirBox, browseExeBtn,
-                configLabel, configBox, browseConfigBtn,
-                okBtn, cancelBtn
-            });
-            dialog.AcceptButton = okBtn;
-            dialog.CancelButton = cancelBtn;
+            bool accepted = false;
+            Button okBtn = new Button() { Content = "OK", Width = 80, IsDefault = true };
+            Canvas.SetLeft(okBtn, 360); Canvas.SetTop(okBtn, 285);
+            okBtn.Click += (s, e) => { accepted = true; dialog.Close(); };
+            Button cancelBtn = new Button() { Content = "Cancel", Width = 80, IsCancel = true };
+            Canvas.SetLeft(cancelBtn, 450); Canvas.SetTop(cancelBtn, 285);
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            Canvas canvas = new Canvas();
+            canvas.Children.Add(nicknameLabel); canvas.Children.Add(nicknameBox);
+            canvas.Children.Add(dirLabel); canvas.Children.Add(dirBox); canvas.Children.Add(browseExeBtn);
+            canvas.Children.Add(configLabel); canvas.Children.Add(configBox); canvas.Children.Add(browseConfigBtn);
+            canvas.Children.Add(okBtn); canvas.Children.Add(cancelBtn);
+            dialog.Content = canvas;
+
+            dialog.ShowDialog();
+            if (accepted)
             {
                 engine.Engine_Nickname = nicknameBox.Text.Trim();
                 engine.Engine_Dir = dirBox.Text.Trim();
@@ -755,6 +798,27 @@ namespace TeronDoomLauncher
         }
     }
 
+    // Wraps a single mods_selection entry with its checked state - replaces WinForms
+    // CheckedListBox, which has no WPF equivalent. Bound to a CheckBox per row via
+    // mods_selection's ItemTemplate in LauncherWindow.xaml.
+    public class CheckableItem : INotifyPropertyChanged
+    {
+        private bool _isChecked;
+        public string Text { get; set; } = string.Empty;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set
+            {
+                if (_isChecked == value) return;
+                _isChecked = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        public override string ToString() => Text;
+    }
+
     public class Mods_Options
     {
         public void AddMods(LauncherWindow self)
@@ -762,13 +826,13 @@ namespace TeronDoomLauncher
             ConfigStore.LoadAll();
 
             //opens a file dialog to select mod files
-            OpenFileDialog ModFileDialog = new OpenFileDialog
+            Microsoft.Win32.OpenFileDialog ModFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Select Mod Files",
                 Filter = "Mod Files (*.wad, *.pk3, *.zip, *.pk7, *.rar)|*.wad;*.pk3;*.zip;*.pk7;*.rar|All Files (*.*)|*.*",
                 Multiselect = true
             };
-            if (ModFileDialog.ShowDialog() == DialogResult.OK && Globals.ModsList != null)
+            if (ModFileDialog.ShowDialog() == true && Globals.ModsList != null)
             {
                 foreach (string file in ModFileDialog.FileNames)
                 {
@@ -788,12 +852,12 @@ namespace TeronDoomLauncher
                     Globals.ModsList.Add(mod_entry);
                     ConfigStore.SaveAll();
                     this.Load_Mods(self);
-                    MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Mod/mods added and configuration updated.", "Mod/mods Added", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             else
             {
-                MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No mod files were selected.", "Selection Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
         }
@@ -806,7 +870,7 @@ namespace TeronDoomLauncher
             {
                 if (!string.IsNullOrEmpty(mod_file.Mod_Name))
                 {
-                    self.mods_selection?.Items.Add(mod_file.Mod_Name!);
+                    self.mods_selection?.Items.Add(new CheckableItem { Text = mod_file.Mod_Name! });
                 }
                 // If Mod_Name is empty, just skip it. No need for a MessageBox.
             }
@@ -823,11 +887,11 @@ namespace TeronDoomLauncher
                     Globals.ModsList.RemoveAt(selectedIndex);
                 }
                 ConfigStore.SaveAll();
-                MessageBox.Show("Selected mod/mods removed and configuration updated.", "Mod/mods Removed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Selected mod/mods removed and configuration updated.", "Mod/mods Removed", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show("No mod/mods selected to remove.", "Removal Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No mod/mods selected to remove.", "Removal Cancelled", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
         }
@@ -835,17 +899,25 @@ namespace TeronDoomLauncher
 
     public class Game_Options
     {
+        // Mods checked via the CheckBox in each mods_selection row (see CheckableItem).
+        private static IEnumerable<string> GetCheckedModNames(LauncherWindow self)
+        {
+            if (self.mods_selection == null) return Enumerable.Empty<string>();
+            return self.mods_selection.Items.Cast<CheckableItem>().Where(m => m.IsChecked).Select(m => m.Text);
+        }
+
         public Globals.GameConfigStructure GetConfigFromUI(LauncherWindow self)
         {
+            List<string> checkedMods = GetCheckedModNames(self).ToList();
             return new Globals.GameConfigStructure
             {
                 Selected_Engine = self.engine_selection?.SelectedItem?.ToString() ?? string.Empty,
                 Selected_WAD = self.wad_selection?.SelectedItem?.ToString() ?? string.Empty,
                 Selected_Map = self.map_selection?.SelectedItem?.ToString() ?? string.Empty,
                 Selected_SkillLevel = self.difficulty_selection?.SelectedItem?.ToString() ?? string.Empty,
-                Selected_Mods = self.mods_selection?.CheckedItems.Count > 0 ? string.Join(";", self.mods_selection.CheckedItems.Cast<string>()) : string.Empty,
+                Selected_Mods = checkedMods.Count > 0 ? string.Join(";", checkedMods) : string.Empty,
                 //online gameplay options save
-                Enable_Multiplayer = self.enable_multiplayer?.Checked ?? false,
+                Enable_Multiplayer = self.enable_multiplayer?.IsChecked ?? false,
                 Selected_Game_Mode = self.multiplayer_game_mode_select?.SelectedItem?.ToString() ?? string.Empty,
                 Selected_Players = self.players_host_select?.SelectedItem?.ToString() ?? string.Empty,
                 Host = self.hostname_ip_textbox?.Text ?? string.Empty,
@@ -872,48 +944,48 @@ namespace TeronDoomLauncher
             string ProductName = parenIndex > 0 ? product[..parenIndex] : product;
             string ProductVersion = ((AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute(
                 Assembly.GetExecutingAssembly(), typeof(AssemblyInformationalVersionAttribute)))?.InformationalVersion ?? "0.0.0";
-            self.Text = $"{ProductName} v{ProductVersion}";
+            self.Title = $"{ProductName} v{ProductVersion}";
         }
 
         public void OnlineModeEnable(LauncherWindow self)
         {
-            if (self.enable_multiplayer?.Checked == true)
+            if (self.enable_multiplayer?.IsChecked == true)
             {
-                self.game_mode_label.Enabled = true;
-                self.multiplayer_game_mode_select.Enabled = true;
-                self.players_host_label.Enabled = true;
-                self.players_host_select.Enabled = true;
-                self.hostname_ip_label.Enabled = true;
-                self.hostname_ip_textbox.Enabled = true;
-                self.port_label.Enabled = true;
-                self.port_textbox.Enabled = true;
-                self.frag_limit_label.Enabled = true;
-                self.frag_limit.Enabled = true;
-                self.time_limit_label.Enabled = true;
-                self.time_limit.Enabled = true;
-                self.dmflags_label.Enabled = true;
-                self.dmflags.Enabled = true;
-                self.dmflags2_label.Enabled = true;
-                self.dmflags2.Enabled = true;
+                self.game_mode_label.IsEnabled = true;
+                self.multiplayer_game_mode_select.IsEnabled = true;
+                self.players_host_label.IsEnabled = true;
+                self.players_host_select.IsEnabled = true;
+                self.hostname_ip_label.IsEnabled = true;
+                self.hostname_ip_textbox.IsEnabled = true;
+                self.port_label.IsEnabled = true;
+                self.port_textbox.IsEnabled = true;
+                self.frag_limit_label.IsEnabled = true;
+                self.frag_limit.IsEnabled = true;
+                self.time_limit_label.IsEnabled = true;
+                self.time_limit.IsEnabled = true;
+                self.dmflags_label.IsEnabled = true;
+                self.dmflags.IsEnabled = true;
+                self.dmflags2_label.IsEnabled = true;
+                self.dmflags2.IsEnabled = true;
             }
             else
             {
-                self.game_mode_label.Enabled = false;
-                self.multiplayer_game_mode_select.Enabled = false;
-                self.players_host_label.Enabled = false;
-                self.players_host_select.Enabled = false;
-                self.hostname_ip_label.Enabled = false;
-                self.hostname_ip_textbox.Enabled = false;
-                self.port_label.Enabled = false;
-                self.port_textbox.Enabled = false;
-                self.frag_limit_label.Enabled = false;
-                self.frag_limit.Enabled = false;
-                self.time_limit_label.Enabled = false;
-                self.time_limit.Enabled = false;
-                self.dmflags_label.Enabled = false;
-                self.dmflags.Enabled = false;
-                self.dmflags2_label.Enabled = false;
-                self.dmflags2.Enabled = false;
+                self.game_mode_label.IsEnabled = false;
+                self.multiplayer_game_mode_select.IsEnabled = false;
+                self.players_host_label.IsEnabled = false;
+                self.players_host_select.IsEnabled = false;
+                self.hostname_ip_label.IsEnabled = false;
+                self.hostname_ip_textbox.IsEnabled = false;
+                self.port_label.IsEnabled = false;
+                self.port_textbox.IsEnabled = false;
+                self.frag_limit_label.IsEnabled = false;
+                self.frag_limit.IsEnabled = false;
+                self.time_limit_label.IsEnabled = false;
+                self.time_limit.IsEnabled = false;
+                self.dmflags_label.IsEnabled = false;
+                self.dmflags.IsEnabled = false;
+                self.dmflags2_label.IsEnabled = false;
+                self.dmflags2.IsEnabled = false;
 
                 // Multiplayer is off: clear the online-game values too, instead of just
                 // disabling controls that still display stale data underneath.
@@ -998,21 +1070,21 @@ namespace TeronDoomLauncher
                         self.engine_selection.SelectedIndex = -1;
                     }
 
-                    for (int i = 0; i < self.mods_selection.Items.Count; i++)
-                        self.mods_selection.SetItemChecked(i, false);
+                    foreach (CheckableItem item in self.mods_selection.Items)
+                        item.IsChecked = false;
 
                     if (!string.IsNullOrEmpty(config.Selected_Mods))
                     {
                         string[] selectedModNames = config.Selected_Mods.Split(';', StringSplitOptions.RemoveEmptyEntries);
                         foreach (string modName in selectedModNames)
                         {
-                            int index = self.mods_selection.Items.IndexOf(modName);
-                            if (index != -1)
-                                self.mods_selection.SetItemChecked(index, true);
+                            CheckableItem? match = self.mods_selection.Items.Cast<CheckableItem>().FirstOrDefault(m => m.Text == modName);
+                            if (match != null)
+                                match.IsChecked = true;
                         }
                     }
 
-                    self.enable_multiplayer.Checked = config.Enable_Multiplayer;
+                    self.enable_multiplayer.IsChecked = config.Enable_Multiplayer;
 
                     if (!string.IsNullOrEmpty(config.Selected_Game_Mode))
                     {
@@ -1219,14 +1291,16 @@ namespace TeronDoomLauncher
                 {
                     selected_wad = "";
                 }
-                if (self.mods_selection?.CheckedItems.Count > 0)
+
+                List<string> checkedMods = GetCheckedModNames(self).ToList();
+                if (checkedMods.Count > 0)
                 {
                     string preselected_mod = string.Empty;
                     foreach (Globals.ModsListStructure mod in Globals.ModsList)
                     {
-                        foreach (string selected_mod_item in self.mods_selection.CheckedItems)
+                        foreach (string selected_mod_item in checkedMods)
                         {
-                            if (mod.Mod_Name == selected_mod_item?.ToString())
+                            if (mod.Mod_Name == selected_mod_item)
                             {
                                 preselected_mod = preselected_mod + "\"" + mod.Mod_Dir + "\" ";
                                 break;
@@ -1273,7 +1347,7 @@ namespace TeronDoomLauncher
                     selected_additional_parameters = " " + self.additional_parameters_textbox.Text;
 
                 //online game options
-                if (self.enable_multiplayer?.Checked == true)
+                if (self.enable_multiplayer?.IsChecked == true)
                 {
                     //select the game mode for a multiplayer game
                     if (self.multiplayer_game_mode_select?.SelectedItem != null)
@@ -1355,7 +1429,7 @@ namespace TeronDoomLauncher
                     {
                         selected_frag_limit = $"{" +set fraglimit " + self.frag_limit.Text}";
                     }
-                    else 
+                    else
                     {
                         selected_frag_limit = "";
                     }
@@ -1371,7 +1445,7 @@ namespace TeronDoomLauncher
                     {
                         selected_dmflags = $"{" +set dmflags " + self.dmflags.Text}";
                     }
-                    else 
+                    else
                     {
                         selected_dmflags = "";
                     }
@@ -1429,7 +1503,7 @@ namespace TeronDoomLauncher
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while trying to launch the game: " + ex.Message, "Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("An error occurred while trying to launch the game: " + ex.Message, "Launch Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
         }
@@ -1468,7 +1542,9 @@ namespace TeronDoomLauncher
         public void UpdateProfileDetails(LauncherWindow self)
         {
             RichTextBox details = self.profile_details_textbox;
-            details.Clear();
+            details.Document.Blocks.Clear();
+            Paragraph paragraph = new Paragraph();
+            details.Document.Blocks.Add(paragraph);
 
             if (self.profile_select.SelectedItem == null)
                 return;
@@ -1478,88 +1554,79 @@ namespace TeronDoomLauncher
             if (profile == null)
                 return;
 
-            AppendHeading(details, "Selected WAD:");
-            AppendValue(details, string.IsNullOrEmpty(profile.Selected_WAD) ? "(none)" : profile.Selected_WAD);
-            AppendBlankLine(details);
+            AppendHeading(paragraph, "Selected WAD:");
+            AppendValue(paragraph, string.IsNullOrEmpty(profile.Selected_WAD) ? "(none)" : profile.Selected_WAD);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Selected Mods:");
+            AppendHeading(paragraph, "Selected Mods:");
             string[] mods = profile.Selected_Mods.Split(';', StringSplitOptions.RemoveEmptyEntries);
             if (mods.Length == 0)
-                AppendValue(details, "(none)");
+                AppendValue(paragraph, "(none)");
             else
                 foreach (string mod in mods)
-                    AppendValue(details, mod);
-            AppendBlankLine(details);
+                    AppendValue(paragraph, mod);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Game difficulty:");
-            AppendValue(details, string.IsNullOrEmpty(profile.Selected_SkillLevel) ? "(Default)" : profile.Selected_SkillLevel);
-            AppendBlankLine(details);
+            AppendHeading(paragraph, "Game difficulty:");
+            AppendValue(paragraph, string.IsNullOrEmpty(profile.Selected_SkillLevel) ? "(Default)" : profile.Selected_SkillLevel);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Starting map:");
-            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Map) ? "(Default)" : profile.Selected_Map);
-            AppendBlankLine(details);
+            AppendHeading(paragraph, "Starting map:");
+            AppendValue(paragraph, string.IsNullOrEmpty(profile.Selected_Map) ? "(Default)" : profile.Selected_Map);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Multiplayer options:");
+            AppendHeading(paragraph, "Multiplayer options:");
             if (profile.Enable_Multiplayer)
             {
-                AppendSubItem(details, "Online game mode:", string.IsNullOrEmpty(profile.Selected_Game_Mode) ? "(none)" : profile.Selected_Game_Mode);
-                AppendSubItem(details, "Players:", string.IsNullOrEmpty(profile.Selected_Players) ? "(none)" : profile.Selected_Players);
+                AppendSubItem(paragraph, "Online game mode:", string.IsNullOrEmpty(profile.Selected_Game_Mode) ? "(none)" : profile.Selected_Game_Mode);
+                AppendSubItem(paragraph, "Players:", string.IsNullOrEmpty(profile.Selected_Players) ? "(none)" : profile.Selected_Players);
                 if (!string.IsNullOrEmpty(profile.Host))
-                    AppendSubItem(details, "Host:", profile.Host + (string.IsNullOrEmpty(profile.Port) ? string.Empty : ":" + profile.Port));
+                    AppendSubItem(paragraph, "Host:", profile.Host + (string.IsNullOrEmpty(profile.Port) ? string.Empty : ":" + profile.Port));
                 if (!string.IsNullOrEmpty(profile.Selected_FragLimit))
-                    AppendSubItem(details, "Frag limit:", profile.Selected_FragLimit);
+                    AppendSubItem(paragraph, "Frag limit:", profile.Selected_FragLimit);
                 if (!string.IsNullOrEmpty(profile.Selected_TimeLimit))
-                    AppendSubItem(details, "Time limit:", profile.Selected_TimeLimit);
+                    AppendSubItem(paragraph, "Time limit:", profile.Selected_TimeLimit);
                 if (!string.IsNullOrEmpty(profile.Selected_DMFlags))
-                    AppendSubItem(details, "DMFLAGS:", profile.Selected_DMFlags);
+                    AppendSubItem(paragraph, "DMFLAGS:", profile.Selected_DMFlags);
                 if (!string.IsNullOrEmpty(profile.Selected_DMFlags2))
-                    AppendSubItem(details, "DMFLAGS2:", profile.Selected_DMFlags2);
+                    AppendSubItem(paragraph, "DMFLAGS2:", profile.Selected_DMFlags2);
             }
             else
             {
-                AppendValue(details, "Disabled (singleplayer)");
+                AppendValue(paragraph, "Disabled (singleplayer)");
             }
-            AppendBlankLine(details);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Running using:");
-            AppendValue(details, string.IsNullOrEmpty(profile.Selected_Engine) ? "(none)" : profile.Selected_Engine);
-            AppendBlankLine(details);
+            AppendHeading(paragraph, "Running using:");
+            AppendValue(paragraph, string.IsNullOrEmpty(profile.Selected_Engine) ? "(none)" : profile.Selected_Engine);
+            AppendBlankLine(paragraph);
 
-            AppendHeading(details, "Additional parameters:");
-            AppendValue(details, string.IsNullOrEmpty(profile.Additional_Parameters) ? "(none)" : profile.Additional_Parameters);
+            AppendHeading(paragraph, "Additional parameters:");
+            AppendValue(paragraph, string.IsNullOrEmpty(profile.Additional_Parameters) ? "(none)" : profile.Additional_Parameters);
         }
 
-        private static void AppendHeading(RichTextBox rtb, string text)
+        private static void AppendHeading(Paragraph paragraph, string text)
         {
-            rtb.SelectionStart = rtb.TextLength;
-            rtb.SelectionLength = 0;
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
-            rtb.AppendText(text + "\n");
+            paragraph.Inlines.Add(new Bold(new Run(text)));
+            paragraph.Inlines.Add(new LineBreak());
         }
 
-        private static void AppendValue(RichTextBox rtb, string text)
+        private static void AppendValue(Paragraph paragraph, string text)
         {
-            rtb.SelectionStart = rtb.TextLength;
-            rtb.SelectionLength = 0;
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
-            rtb.AppendText(text + "\n");
+            paragraph.Inlines.Add(new Run(text));
+            paragraph.Inlines.Add(new LineBreak());
         }
 
-        private static void AppendBlankLine(RichTextBox rtb)
+        private static void AppendBlankLine(Paragraph paragraph)
         {
-            rtb.AppendText("\n");
+            paragraph.Inlines.Add(new LineBreak());
         }
 
-        private static void AppendSubItem(RichTextBox rtb, string label, string value)
+        private static void AppendSubItem(Paragraph paragraph, string label, string value)
         {
-            rtb.SelectionStart = rtb.TextLength;
-            rtb.SelectionLength = 0;
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
-            rtb.AppendText("    " + label + " ");
-            rtb.SelectionStart = rtb.TextLength;
-            rtb.SelectionLength = 0;
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
-            rtb.AppendText(value + "\n");
+            paragraph.Inlines.Add(new Bold(new Run("    " + label + " ")));
+            paragraph.Inlines.Add(new Run(value));
+            paragraph.Inlines.Add(new LineBreak());
         }
 
         public void AddProfile(LauncherWindow self)
@@ -1570,7 +1637,7 @@ namespace TeronDoomLauncher
                 List<Globals.GameConfigStructure> entries = Globals.Config.Configuration.Profiles.Entries;
                 if (entries.Any(p => p.Name == profileName))
                 {
-                    MessageBox.Show("Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Profile already exists.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 // Start blank rather than snapshotting whatever is currently on the Game
@@ -1589,7 +1656,7 @@ namespace TeronDoomLauncher
             {
                 string profileName = self.profile_select.SelectedItem.ToString() ?? string.Empty;
                 if (profileName == "Default") { MessageBox.Show("Cannot remove Default profile."); return; }
-                if (MessageBox.Show($"Delete profile '{profileName}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show($"Delete profile '{profileName}'?", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                 {
                     Globals.Config.Configuration.Profiles.Entries.RemoveAll(p => p.Name == profileName);
                     Globals.SelectedProfile = "Default";
@@ -1604,14 +1671,24 @@ namespace TeronDoomLauncher
     {
         public static string ShowDialog(string text, string caption)
         {
-            Form prompt = new Form() { Width = 500, Height = 150, FormBorderStyle = FormBorderStyle.FixedDialog, Text = caption, StartPosition = FormStartPosition.CenterParent };
-            Label textLabel = new Label() { Left = 50, Top = 20, Text = text, Width = 400 };
-            TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
-            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 80, DialogResult = DialogResult.OK };
-            confirmation.Click += (sender, e) => { prompt.Close(); };
-            prompt.Controls.Add(textBox); prompt.Controls.Add(confirmation); prompt.Controls.Add(textLabel);
-            prompt.AcceptButton = confirmation;
-            return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : "";
+            Window prompt = new Window() { Width = 500, Height = 150, ResizeMode = ResizeMode.NoResize, Title = caption, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Application.Current?.Windows.Count > 0 ? Application.Current.Windows[0] : null };
+            Label textLabel = new Label() { Content = text, Width = 400 };
+            Canvas.SetLeft(textLabel, 50); Canvas.SetTop(textLabel, 20);
+            TextBox textBox = new TextBox() { Width = 400 };
+            Canvas.SetLeft(textBox, 50); Canvas.SetTop(textBox, 50);
+            bool accepted = false;
+            Button confirmation = new Button() { Content = "Ok", Width = 100, IsDefault = true };
+            Canvas.SetLeft(confirmation, 350); Canvas.SetTop(confirmation, 80);
+            confirmation.Click += (sender, e) => { accepted = true; prompt.Close(); };
+
+            Canvas canvas = new Canvas();
+            canvas.Children.Add(textBox);
+            canvas.Children.Add(confirmation);
+            canvas.Children.Add(textLabel);
+            prompt.Content = canvas;
+
+            prompt.ShowDialog();
+            return accepted ? textBox.Text : "";
         }
     }
 }
